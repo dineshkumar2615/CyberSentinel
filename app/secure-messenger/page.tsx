@@ -28,6 +28,7 @@ function SecureMessengerContent() {
     const [inputText, setInputText] = useState('');
     const [encryptedOutput, setEncryptedOutput] = useState('');
     const [decryptInput, setDecryptInput] = useState('');
+    const [isManualDecryptOpen, setIsManualDecryptOpen] = useState(false);
     const channelIdRef = useRef<string | null>(null);
     const lastSyncTimeRef = useRef<number>(0);
     const deviceIdRef = useRef<string>('');
@@ -167,7 +168,7 @@ function SecureMessengerContent() {
 
         try {
             const ciphertext = await encryptMessage(inputText, sessionKey);
-            setEncryptedOutput(ciphertext);
+            setEncryptedOutput('');
 
             const newMessage: ChatMessage = {
                 id: Date.now().toString(),
@@ -266,12 +267,27 @@ function SecureMessengerContent() {
                             // Only add if it's from someone else
                             if (msg.senderId !== deviceIdRef.current) {
                                 hasNew = true;
+                                let displayedText = msg.encryptedPayload;
+                                let isAutoDecrypted = false;
+
+                                // Auto-decrypt if key is available
+                                try {
+                                    if (sessionKey) {
+                                        displayedText = await decryptMessage(msg.encryptedPayload, sessionKey);
+                                        isAutoDecrypted = true;
+                                    }
+                                } catch (err) {
+                                    console.warn("Auto-decryption failed for message:", msg.timestamp);
+                                    displayedText = "[Encrypted Message - Key Mismatch]";
+                                }
+
                                 updatedMessages.push({
                                     id: msg._id || msg.timestamp.toString(),
                                     sender: 'them',
-                                    text: msg.encryptedPayload,
+                                    text: displayedText,
                                     timestamp: msg.timestamp,
-                                    senderId: msg.senderId
+                                    senderId: msg.senderId,
+                                    isDecrypted: isAutoDecrypted
                                 });
                             }
                         }
@@ -315,7 +331,7 @@ function SecureMessengerContent() {
     if (status === 'loading') return <div className="min-h-screen bg-[var(--background)]" />;
 
     return (
-        <main className="min-h-screen pt-20 pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative">
+        <main className="min-h-screen pt-10 pb-10 px-4 md:px-8 max-w-[1600px] mx-auto relative">
             {/* Favorite Modal */}
             <AnimatePresence>
                 {showFavModal && (
@@ -371,7 +387,7 @@ function SecureMessengerContent() {
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-neon-green/50 to-transparent" />
             </div>
 
-            <div className="relative z-10 grid lg:grid-cols-12 gap-8 lg:h-[85vh]">
+            <div className="relative z-10 grid lg:grid-cols-12 gap-8 h-[calc(100vh-120px)] lg:h-[90vh]">
 
                 {/* LEFT PANEL: Session Control */}
                 <div className="lg:col-span-4 flex flex-col gap-6">
@@ -497,31 +513,7 @@ function SecureMessengerContent() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Header (Active Session Only) */}
-                            <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--glass-border)] bg-[var(--background)]/80 backdrop-blur-xl sticky top-0 z-20">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-neon-green/10 flex items-center justify-center border border-neon-green/30">
-                                        <Shield size={16} className="text-neon-green" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase text-neon-green/60">SECURE CHAT</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleLeaveSession}
-                                        className="p-2 bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <X size={12} /> CLOSE
-                                    </button>
-                                    <button
-                                        onClick={handleNuke}
-                                        className="p-2 bg-red-500/10 border border-red-500/30 text-red-500 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"
-                                    >
-                                        <Trash2 size={12} /> NUKE
-                                    </button>
-                                </div>
-                            </div>
+                            {/* Mobile Header (Active Session Only) - Removed to maximize space and fix scrolling */}
 
                             {/* Messages Area */}
                             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin scrollbar-thumb-neon-green/20">
@@ -544,14 +536,9 @@ function SecureMessengerContent() {
                                         <div className={`max-w-[85%] p-4 rounded-2xl border ${isMe
                                             ? 'bg-neon-green/10 border-neon-green/30 text-neon-green rounded-tr-none'
                                             : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
-                                            } relative pt-6`}
+                                            } relative break-words overflow-hidden`}
                                         >
-                                            {msg.isDecrypted && !isMe && (
-                                                <div className="absolute top-0 left-4 -translate-y-1/2 bg-neon-blue/20 text-neon-blue text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border border-neon-blue/30 shadow-[0_0_10px_rgba(0,183,255,0.2)]">
-                                                    Decrypted Text
-                                                </div>
-                                            )}
-                                            <p className="text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1">{msg.text}</p>
+                                            <p className="text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-all md:break-words">{msg.text}</p>
                                             <span className="text-[9px] opacity-40 mt-2 block font-mono text-right">
                                                 {new Date(msg.timestamp).toLocaleDateString([], { month: '2-digit', day: '2-digit', year: 'numeric' })} {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
@@ -591,6 +578,26 @@ function SecureMessengerContent() {
                                         />
                                     </div>
                                     <button
+                                        onClick={async () => {
+                                            if (!inputText.trim()) return;
+                                            if (encryptedOutput) {
+                                                setEncryptedOutput('');
+                                                return;
+                                            }
+                                            try {
+                                                const encrypted = await encryptMessage(inputText.trim(), sessionKey);
+                                                setEncryptedOutput(encrypted);
+                                            } catch (err) {
+                                                console.error("Encryption failed", err);
+                                            }
+                                        }}
+                                        disabled={!inputText.trim()}
+                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 border border-neon-green/30 hover:bg-neon-green/10 ${inputText.trim() ? 'text-neon-green' : 'text-[var(--text-dim)] opacity-50'}`}
+                                        title="Preview Ciphertext"
+                                    >
+                                        <Shield size={22} />
+                                    </button>
+                                    <button
                                         onClick={handleEncrypt}
                                         disabled={!inputText.trim()}
                                         className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 ${inputText.trim()
@@ -626,26 +633,49 @@ function SecureMessengerContent() {
                                     )}
                                 </AnimatePresence>
 
-                                {/* 2. Decrypt Flow */}
-                                <div className="flex gap-4 pt-4 border-t border-[var(--glass-border)]/50">
-                                    <div className="relative flex-1">
-                                        <input
-                                            type="text"
-                                            value={decryptInput}
-                                            onChange={(e) => setDecryptInput(e.target.value)}
-                                            placeholder="Paste encrypted text here..."
-                                            className="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-xl px-4 py-3 pl-10 text-xs font-mono focus:border-neon-blue/50 outline-none transition-colors"
-                                        />
-                                        <Smartphone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
-                                    </div>
-                                    <button
-                                        onClick={handleDecrypt}
-                                        disabled={!decryptInput}
-                                        className="px-6 py-3 bg-[var(--card-bg)] border border-[var(--glass-border)] text-[var(--foreground)] font-bold uppercase rounded-xl hover:bg-[var(--glass-bg)] active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50"
+                                {/* 2. Decrypt Flow Toggle */}
+                                <div className="flex justify-center pt-2">
+                                    <button 
+                                        onClick={() => setIsManualDecryptOpen(!isManualDecryptOpen)}
+                                        className="px-6 py-2.5 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-xl text-[10px] font-black uppercase tracking-[0.2em] text-neon-blue hover:bg-neon-blue/10 hover:border-neon-blue/30 transition-all flex items-center gap-3 shadow-[0_0_15px_rgba(0,183,255,0.1)] active:scale-95 group"
                                     >
-                                        <Key size={14} /> Decrypt
+                                        <div className="p-1 rounded bg-neon-blue/20 text-neon-blue group-hover:scale-110 transition-transform">
+                                            {isManualDecryptOpen ? <X size={10} /> : <Zap size={10} />}
+                                        </div>
+                                        {isManualDecryptOpen ? 'Close Terminal' : 'Decrypt the code'}
                                     </button>
                                 </div>
+
+                                <AnimatePresence>
+                                    {isManualDecryptOpen && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="flex gap-4 pt-4 mt-2 border-t border-[var(--glass-border)]/50">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="text"
+                                                        value={decryptInput}
+                                                        onChange={(e) => setDecryptInput(e.target.value)}
+                                                        placeholder="Paste encrypted text here..."
+                                                        className="w-full bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-xl px-4 py-3 pl-10 text-xs font-mono focus:border-neon-blue/50 outline-none transition-colors"
+                                                    />
+                                                    <Smartphone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                                                </div>
+                                                <button
+                                                    onClick={handleDecrypt}
+                                                    disabled={!decryptInput}
+                                                    className="px-6 py-3 bg-[var(--card-bg)] border border-[var(--glass-border)] text-[var(--foreground)] font-bold uppercase rounded-xl hover:bg-[var(--glass-bg)] active:scale-95 transition-all text-xs flex items-center gap-2 disabled:opacity-50"
+                                                >
+                                                    <Key size={14} /> Decrypt
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
 
                             </div>
                         </>

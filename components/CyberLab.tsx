@@ -404,22 +404,22 @@ export default function CyberLab() {
 
                                 {isScanning && (
                                     <div className="relative w-full max-w-lg flex flex-col items-center z-10">
-                                        <div className="relative mb-12">
+                                        <div className="relative mb-8 sm:mb-12">
                                             <motion.div
                                                 animate={{ rotate: 360 }}
                                                 transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                                                className="w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
+                                                className="w-40 h-40 sm:w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
                                             />
                                             <motion.div
                                                 animate={{ rotate: -360 }}
                                                 transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-                                                className="absolute inset-4 border border-neon-purple/20 rounded-full border-b-neon-purple"
+                                                className="absolute inset-3 sm:inset-4 border border-neon-purple/20 rounded-full border-b-neon-purple"
                                             />
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                <div className="text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
+                                                <div className="text-3xl sm:text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
                                                     {Math.round(scanProgress)}%
                                                 </div>
-                                                <div className="text-[8px] text-neon-blue font-mono tracking-[0.3em] mt-2 animate-pulse">PATH_TRACE</div>
+                                                <div className="text-[7px] sm:text-[8px] text-neon-blue font-mono tracking-[0.3em] mt-1 sm:mt-2 animate-pulse">PATH_TRACE</div>
                                             </div>
 
                                             <motion.div
@@ -429,7 +429,7 @@ export default function CyberLab() {
                                             />
                                         </div>
 
-                                        <div className="w-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-lg p-4 font-mono text-[9px] text-neon-green/80 shadow-2xl overflow-hidden">
+                                        <div className="w-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-lg p-3 sm:p-4 font-mono text-[8px] sm:text-[9px] text-neon-green/80 shadow-2xl overflow-hidden">
                                             <div className="flex justify-between border-b border-[var(--glass-border)] pb-2 mb-2">
                                                 <span className="text-[var(--foreground)]/50 uppercase tracking-widest">System_Console Log</span>
                                                 <span className="animate-pulse">● LIVE</span>

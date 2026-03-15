@@ -59,7 +59,7 @@ export default function Navigation() {
 
             {/* Mobile Bottom Bar - Glassmorphism */}
             <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[var(--background)]/90 backdrop-blur-xl border-t border-[var(--glass-border)] z-50 pb-safe transition-colors duration-300">
-                <div className="flex justify-around items-center h-16 w-full mx-auto relative overflow-hidden">
+                <div className="flex justify-between items-center h-16 w-full max-w-sm mx-auto relative overflow-hidden px-2">
                     <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(0,255,157,0.05)_50%,transparent_100%)] opacity-30 pointer-events-none" />
                     {navItems.map((item) => {
                         const isActive = pathname === item.href;

@@ -113,7 +113,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
                 <div className={`absolute left-0 top-0 bottom-0 w-1 ${config.line} opacity-80 group-hover:opacity-100 transition-opacity`} />
                 <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-[var(--glass-border)] to-transparent opacity-0 group-hover:opacity-20 transition-opacity rounded-tr-2xl`} />
 
-                <div className="p-5 flex flex-col h-full relative z-10 pl-6">
+                <div className="p-4 sm:p-5 flex flex-col h-full relative z-10 pl-5 sm:pl-6">
                     {/* Top Section */}
                     <div className="flex justify-between items-start mb-4">
                         <div className="flex flex-col gap-2">
@@ -159,7 +159,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
                     </p>
 
                     {/* Bottom Action Footer */}
-                    <div className="pt-4 border-t border-[var(--glass-border)] flex items-center justify-between">
+                    <div className="pt-3 sm:pt-4 border-t border-[var(--glass-border)] flex flex-wrap items-center justify-between gap-2">
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setIsModalOpen(true)}

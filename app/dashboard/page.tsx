@@ -7,17 +7,18 @@ import {
     Settings, Clock, ShieldAlert, AlertTriangle, Star, Cpu, 
     RefreshCw, ChevronDown, Search, MessageSquare,
     BookOpen, X, Target, Landmark, ArrowUpRight, ArrowDownRight,
-    Bell, Camera
+    Bell, Camera, AlertCircle, Lock
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { redirect } from "next/navigation";
+import { useRouter, redirect } from "next/navigation";
+import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import ThreatDetailModal from "@/components/ThreatDetailModal";
 import { 
     AreaChart, Area, ResponsiveContainer
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ── Types ──────────────────────────────────────────────
 interface Threat {
@@ -185,24 +186,62 @@ export default function DashboardPage() {
     const [favPopup, setFavPopup] = useState(false);
     const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null);
 
+    // Dropdown state
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [maintenanceNews, setMaintenanceNews] = useState<any>(null);
+
+    const profileRef = React.useRef<HTMLDivElement>(null);
+    const notificationsRef = React.useRef<HTMLDivElement>(null);
+
+    // Password Modal State
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const [modalStep, setModalStep] = useState<'verify' | 'update'>('verify');
+    const [oldPassword, setOldPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [passwordError, setPasswordError] = useState('');
+    const [passwordLoading, setPasswordLoading] = useState(false);
+    const [passwordSuccess, setPasswordSuccess] = useState(false);
+
     useEffect(() => {
         setMounted(true);
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
 
+    // Click outside handler
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setIsProfileOpen(false);
+            }
+            if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+                setIsNotificationsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
     const fetchAll = useCallback(async () => {
         setData(prev => ({ ...prev, loading: true, error: null }));
         try {
-            const [threatsRes, savedRes, favsRes] = await Promise.all([
+            const [threatsRes, savedRes, favsRes, maintRes] = await Promise.all([
                 fetch('/api/threats?days=7'),
                 fetch('/api/users/saved-threats'),
                 fetch('/api/favorites'),
+                fetch('/api/admin/maintenance')
             ]);
             const threats: Threat[]       = threatsRes.ok ? await threatsRes.json() : [];
             const savedThreats: Threat[]  = savedRes.ok    ? await savedRes.json()   : [];
             const favsData                = favsRes.ok      ? await favsRes.json()    : {};
             const favorites: Favorite[]   = favsData.favorites || [];
+
+            if (maintRes.ok) {
+                const maintData = await maintRes.json();
+                setMaintenanceNews(maintData);
+            }
 
             setData({ threats, savedThreats, favorites, loading: false, lastFetched: new Date(), error: null });
         } catch (e) {
@@ -294,25 +333,130 @@ export default function DashboardPage() {
                         </p>
                     </div>
 
-                    <button className="relative p-2 text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors">
-                        <Bell size={20} />
-                        {criticalCount > 0 && (
-                            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-                        )}
-                    </button>
+                    {/* Notifications Dropdown */}
+                    <div className="relative" ref={notificationsRef}>
+                        <button 
+                            onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                            className={`relative p-2 transition-colors rounded-xl ${isNotificationsOpen ? 'bg-indigo-500/10 text-indigo-500' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}
+                        >
+                            <Bell size={20} />
+                            {criticalCount > 0 && (
+                                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
+                            )}
+                        </button>
+
+                        <AnimatePresence>
+                            {isNotificationsOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 mt-3 w-80 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
+                                >
+                                    <div className="px-5 py-4 border-b border-[var(--glass-border)] bg-indigo-500/5">
+                                        <h3 className="text-xs font-black text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
+                                            <Bell size={14} className="text-indigo-500" /> Notifications
+                                        </h3>
+                                    </div>
+                                    <div className="p-2 space-y-1">
+                                        {maintenanceNews?.isMaintenanceMode || maintenanceNews?.maintenanceStart ? (
+                                            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+                                                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 h-fit">
+                                                    <AlertCircle size={16} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-[11px] font-bold text-amber-500 uppercase tracking-tighter">System Maintenance</p>
+                                                    <p className="text-[10px] text-[var(--foreground)] mt-1 leading-relaxed">
+                                                        {maintenanceNews.maintenanceMessage || "Scheduled security upgrades are incoming."}
+                                                    </p>
+                                                    {maintenanceNews.maintenanceStart && (
+                                                        <p className="text-[9px] text-[var(--text-muted)] mt-1.5 font-mono italic">
+                                                            Starts: {new Date(maintenanceNews.maintenanceStart).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="py-8 text-center text-[var(--text-muted)]">
+                                                <CheckCircle size={28} className="mx-auto mb-2 opacity-30" />
+                                                <p className="text-xs font-bold uppercase tracking-widest">Systems Nominal</p>
+                                                <p className="text-[10px] mt-1 italic">No active maintenance detected.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
                     <ThemeToggle />
                     <div className="w-px h-6 bg-[var(--glass-border)]" />
 
-                    <div className="flex items-center gap-2 cursor-pointer hover:bg-[var(--glass-bg)] px-2 py-1.5 rounded-xl transition-colors">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
-                            <User size={16} className="text-white" />
+                    {/* Profile Dropdown */}
+                    <div className="relative" ref={profileRef}>
+                        <div 
+                            onClick={() => setIsProfileOpen(!isProfileOpen)}
+                            className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded-xl transition-all ${isProfileOpen ? 'bg-[var(--glass-bg)] ring-1 ring-[var(--glass-border)]' : 'hover:bg-[var(--glass-bg)]'}`}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-sm">
+                                <User size={16} className="text-white" />
+                            </div>
+                            <div className="hidden md:block">
+                                <p className="text-xs font-bold text-[var(--foreground)] leading-none">{session?.user?.name?.split(' ')[0] || 'Agent'}</p>
+                                <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest leading-none mt-0.5">{(session?.user as any)?.role || 'User'}</p>
+                            </div>
+                            <ChevronDown size={14} className={`text-[var(--text-muted)] transition-transform ${isProfileOpen ? 'rotate-180' : ''}`} />
                         </div>
-                        <div className="hidden md:block">
-                            <p className="text-xs font-bold text-[var(--foreground)] leading-none">{session?.user?.name?.split(' ')[0] || 'Agent'}</p>
-                            <p className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest leading-none mt-0.5">{(session?.user as any)?.role || 'User'}</p>
-                        </div>
-                        <ChevronDown size={14} className="text-[var(--text-muted)]" />
+
+                        <AnimatePresence>
+                            {isProfileOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    className="absolute right-0 mt-3 w-64 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
+                                >
+                                    <div className="p-4 bg-indigo-500/5 border-b border-[var(--glass-border)]">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm">
+                                                {session?.user?.name?.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-bold text-[var(--foreground)] truncate">{session?.user?.name}</p>
+                                                <p className="text-[10px] text-[var(--text-muted)] truncate italic">{session?.user?.email}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="p-2 space-y-1">
+                                        <button 
+                                            onClick={() => {
+                                                setIsPasswordModalOpen(true);
+                                                setIsProfileOpen(false);
+                                            }}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-indigo-500/5 transition-colors group"
+                                        >
+                                            <div className="p-1.5 rounded-lg bg-[var(--glass-bg)] text-[var(--text-muted)] group-hover:text-indigo-500 transition-colors">
+                                                <Key size={15} />
+                                            </div>
+                                            <span className="text-[11px] font-bold text-[var(--foreground)] uppercase tracking-wider text-left">Change Password</span>
+                                        </button>
+                                        <button 
+                                            onClick={() => signOut({ callbackUrl: '/' })}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/5 text-red-500 transition-colors group"
+                                        >
+                                            <div className="p-1.5 rounded-lg bg-red-500/10 text-red-500 group-hover:scale-110 transition-transform">
+                                                <LogOut size={15} />
+                                            </div>
+                                            <span className="text-[11px] font-black uppercase tracking-wider">Log Out</span>
+                                        </button>
+                                    </div>
+                                    <div className="px-4 py-2 bg-[var(--glass-bg)] flex items-center justify-between">
+                                        <span className="text-[8px] text-[var(--text-muted)] font-bold uppercase tracking-widest">Active Status</span>
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_5px_#10B981]" />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     <button
@@ -717,6 +861,165 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+
+            {/* ── PASSWORD CHANGE MODAL ──────────────────────── */}
+            <AnimatePresence>
+                {isPasswordModalOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                            className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2.5rem] w-full max-w-md shadow-2xl overflow-hidden relative"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
+                            
+                            <div className="p-8">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                                            <Lock size={20} className="text-indigo-500" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-sm font-black uppercase tracking-tighter text-[var(--foreground)]">Security Protocol</h3>
+                                            <p className="text-[10px] text-[var(--text-dim)] font-mono">STEP {modalStep === 'verify' ? '01' : '02'}_OF_02</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setIsPasswordModalOpen(false);
+                                            setModalStep('verify');
+                                            setOldPassword('');
+                                            setNewPassword('');
+                                            setConfirmPassword('');
+                                            setPasswordError('');
+                                            setPasswordSuccess(false);
+                                        }}
+                                        className="p-2 hover:bg-[var(--glass-bg)] rounded-full transition-colors"
+                                    >
+                                        <X size={20} className="text-[var(--text-muted)]" />
+                                    </button>
+                                </div>
+
+                                {passwordSuccess ? (
+                                    <div className="text-center py-6">
+                                        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/20">
+                                            <CheckCircle className="text-emerald-500" size={32} />
+                                        </div>
+                                        <h4 className="text-lg font-bold text-[var(--foreground)] mb-2 uppercase italic tracking-tight">Access updated</h4>
+                                        <p className="text-xs text-[var(--text-muted)] mb-8">Your security credentials have been successfully recalibrated. Use your new password for future sessions.</p>
+                                        <button 
+                                            onClick={() => setIsPasswordModalOpen(false)}
+                                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-emerald-900/20"
+                                        >
+                                            Dismiss Terminal
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {modalStep === 'verify' ? (
+                                            <div className="space-y-4">
+                                                <p className="text-xs text-[var(--text-muted)] leading-relaxed">Please verify your identity by entering your current terminal access key.</p>
+                                                <div className="relative">
+                                                    <input 
+                                                        type="password"
+                                                        value={oldPassword}
+                                                        onChange={(e) => setOldPassword(e.target.value)}
+                                                        placeholder="CURRENT_PASSWORD"
+                                                        className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl px-6 py-4 text-sm font-mono placeholder:text-[var(--text-dim)] focus:border-indigo-500/50 outline-none transition-all"
+                                                    />
+                                                    <Key size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                                                </div>
+                                                <button className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest hover:underline decoration-2 underline-offset-4">Forgot password?</button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <p className="text-xs text-[var(--text-muted)] leading-relaxed">Enter your new security credentials below. Ensure they are complex and unique.</p>
+                                                <div className="space-y-3">
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="password"
+                                                            value={newPassword}
+                                                            onChange={(e) => setNewPassword(e.target.value)}
+                                                            placeholder="NEW_PASSWORD"
+                                                            className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl px-6 py-4 text-sm font-mono placeholder:text-[var(--text-dim)] focus:border-indigo-500/50 outline-none transition-all"
+                                                        />
+                                                        <Lock size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                                                    </div>
+                                                    <div className="relative">
+                                                        <input 
+                                                            type="password"
+                                                            value={confirmPassword}
+                                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                                            placeholder="CONFIRM_NEW_PASSWORD"
+                                                            className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl px-6 py-4 text-sm font-mono placeholder:text-[var(--text-dim)] focus:border-indigo-500/50 outline-none transition-all"
+                                                        />
+                                                        <CheckCircle size={14} className="absolute right-5 top-1/2 -translate-y-1/2 text-[var(--text-dim)]" />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {passwordError && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3"
+                                            >
+                                                <AlertCircle size={14} className="text-red-500 shrink-0" />
+                                                <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest">{passwordError}</p>
+                                            </motion.div>
+                                        )}
+
+                                        <button 
+                                            onClick={async () => {
+                                                setPasswordLoading(true);
+                                                setPasswordError('');
+                                                try {
+                                                    const res = await fetch('/api/user/change-password', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ 
+                                                            step: modalStep,
+                                                            oldPassword,
+                                                            newPassword,
+                                                            confirmPassword
+                                                        })
+                                                    });
+                                                    const data = await res.json();
+                                                    if (!res.ok) throw new Error(data.message);
+                                                    
+                                                    if (modalStep === 'verify') {
+                                                        setModalStep('update');
+                                                    } else {
+                                                        setPasswordSuccess(true);
+                                                    }
+                                                } catch (err: any) {
+                                                    setPasswordError(err.message);
+                                                } finally {
+                                                    setPasswordLoading(false);
+                                                }
+                                            }}
+                                            disabled={passwordLoading || (modalStep === 'verify' && !oldPassword) || (modalStep === 'update' && (!newPassword || !confirmPassword))}
+                                            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-900/20 flex items-center justify-center gap-3 group"
+                                        >
+                                            {passwordLoading ? (
+                                                <RefreshCw size={18} className="animate-spin" />
+                                            ) : (
+                                                <>
+                                                    <span>{modalStep === 'verify' ? 'Initialize Verification' : 'Update Credentials'}</span>
+                                                    <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
 
             {/* ── THREAT DETAIL MODAL ─────────────────────── */}
             <ThreatDetailModal

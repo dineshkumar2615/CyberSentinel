@@ -71,13 +71,13 @@ export default function ThreatDetailModal({ threat, isOpen, onClose }: ThreatDet
                         </div>
 
                         {/* Header */}
-                        <div className="relative flex-none flex items-start justify-between p-6 md:px-8 md:pt-8 md:pb-6 border-b border-[var(--glass-border)] bg-[var(--card-bg)]/80 backdrop-blur-md z-10">
+                        <div className="relative flex-none flex items-start justify-between p-5 sm:p-6 md:px-8 md:pt-8 md:pb-6 border-b border-[var(--glass-border)] bg-[var(--card-bg)]/80 backdrop-blur-md z-10">
                             <div className="flex-1 pr-4">
                                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold mb-4 ${getSeverityColor(threat.severity)}`}>
                                     <div className="w-2 h-2 rounded-full bg-current animate-pulse" />
                                     {threat.severity.toUpperCase()} PRIORITY
                                 </div>
-                                <h2 className="text-2xl md:text-3xl font-black text-[var(--foreground)] leading-tight mb-2 tracking-tight">{threat.title}</h2>
+                                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[var(--foreground)] leading-tight mb-2 tracking-tight">{threat.title}</h2>
                                 <div className="flex items-center gap-2 text-sm text-[var(--foreground)]/60 font-medium">
                                     <span>{threat.source}</span>
                                     <span>•</span>
@@ -93,7 +93,7 @@ export default function ThreatDetailModal({ threat, isOpen, onClose }: ThreatDet
                         </div>
 
                         {/* Scrollable Content */}
-                        <div className="relative flex-1 overflow-y-auto p-6 md:p-8 space-y-8 custom-scrollbar">
+                        <div className="relative flex-1 overflow-y-auto p-5 sm:p-6 md:p-8 space-y-6 sm:space-y-8 custom-scrollbar">
                             {/* Overview Section */}
                             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                                 {/* Featured Image */}

@@ -64,12 +64,9 @@
   /* Amber 700 */
 
   /* Digital Glass & Holograms */
-  --glass-bg: rgba(255, 255, 255, 0.75);
-  /* Frosted White Glass */
-  --glass-border: rgba(59, 130, 246, 0.2);
-  /* Subtle Blue Tech Border */
-  --card-bg: rgba(255, 255, 255, 0.85);
-  /* Pearl White Cards */
+  --glass-bg: rgba(255, 255, 255, 0.9);   /* More opaque white glass */
+  --glass-border: rgba(59, 130, 246, 0.3);
+  --card-bg: #ffffff;                     /* Solid White for Dropdowns/Cards in Light Mode */
 
   /* Soft Coloured Ambience */
   --neon-shadow-green: 0 4px 20px rgba(5, 150, 105, 0.15);
