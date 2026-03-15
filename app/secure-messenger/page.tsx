@@ -331,7 +331,7 @@ function SecureMessengerContent() {
     if (status === 'loading') return <div className="min-h-screen bg-[var(--background)]" />;
 
     return (
-        <main className="min-h-screen pt-10 pb-10 px-4 md:px-8 max-w-[1600px] mx-auto relative">
+        <main className="h-screen md:min-h-screen pt-0 pb-16 md:pb-10 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-hidden md:overflow-visible">
             {/* Favorite Modal */}
             <AnimatePresence>
                 {showFavModal && (
@@ -387,10 +387,10 @@ function SecureMessengerContent() {
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-neon-green/50 to-transparent" />
             </div>
 
-            <div className="relative z-10 grid lg:grid-cols-12 gap-8 h-[calc(100vh-120px)] lg:h-[90vh]">
+            <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center max-w-lg mx-auto' : 'grid lg:grid-cols-12 flex-1 md:h-[calc(100vh-140px)] lg:h-[85vh]'}`}>
 
                 {/* LEFT PANEL: Session Control */}
-                <div className="lg:col-span-4 flex flex-col gap-6">
+                <div className={`${isSessionActive ? 'lg:col-span-4' : 'w-full'} flex flex-col gap-6`}>
                     {/* Header Card */}
                     <div className={`bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] p-8 relative overflow-hidden ${isSessionActive ? 'hidden md:block' : 'block'}`}>
                         <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
@@ -504,7 +504,7 @@ function SecureMessengerContent() {
                 </div>
 
                 {/* RIGHT PANEL: Chat Interface */}
-                <div className="lg:col-span-8 flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative">
+                <div className={`lg:col-span-8 flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative ${!isSessionActive ? 'hidden' : 'flex'}`}>
 
                     {!isSessionActive ? (
                         <div className="absolute inset-0 hidden md:flex flex-col items-center justify-center text-[var(--text-dim)] opacity-50 pointer-events-none">
@@ -513,10 +513,37 @@ function SecureMessengerContent() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Header (Active Session Only) - Removed to maximize space and fix scrolling */}
+                            {/* Mobile Header (Active Session Only) */}
+                            <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-lg bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green">
+                                        <Lock size={16} />
+                                    </div>
+                                    <div className="text-[10px] text-[var(--text-dim)] font-mono">
+                                        {sessionKey.substring(0, 6)}...{sessionKey.substring(sessionKey.length - 4)}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleLeaveSession}
+                                        className="p-2 rounded-lg bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] active:scale-95 transition-all"
+                                        title="Close Channel"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                    <button
+                                        onClick={handleNuke}
+                                        className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 active:scale-95 transition-all"
+                                        title="Nuke Session"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Messages Area */}
-                            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin scrollbar-thumb-neon-green/20">
+                            <div className="flex-1 flex flex-col max-w-[1200px] mx-auto w-full overflow-hidden">
+                                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin scrollbar-thumb-neon-green/20">
                                 {messages.length === 0 && (
                                     <div className="text-center py-20 text-[var(--text-dim)]">
                                         <MessageSquare size={48} className="mx-auto mb-4 opacity-20" />
@@ -525,7 +552,7 @@ function SecureMessengerContent() {
                                 )}
 
                                 {messages.map((msg) => {
-                                    const isMe = msg.senderId === deviceIdRef.current || (!msg.senderId && msg.sender === 'me');
+                                    const isMe = msg.sender === 'me';
                                     return (
                                     <motion.div
                                         key={msg.id}
@@ -533,14 +560,14 @@ function SecureMessengerContent() {
                                         animate={{ opacity: 1, y: 0 }}
                                         className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                                     >
-                                        <div className={`max-w-[85%] p-4 rounded-2xl border ${isMe
+                                        <div className={`max-w-[90%] md:max-w-[85%] p-3 md:p-4 rounded-2xl border ${isMe
                                             ? 'bg-neon-green/10 border-neon-green/30 text-neon-green rounded-tr-none'
                                             : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
                                             } relative break-words overflow-hidden`}
                                         >
-                                            <p className="text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-all md:break-words">{msg.text}</p>
-                                            <span className="text-[9px] opacity-40 mt-2 block font-mono text-right">
-                                                {new Date(msg.timestamp).toLocaleDateString([], { month: '2-digit', day: '2-digit', year: 'numeric' })} {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
+                                            <span className="text-[8px] md:text-[9px] opacity-40 mt-1 md:mt-2 block font-mono text-right">
+                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </div>
                                     </motion.div>
@@ -548,16 +575,16 @@ function SecureMessengerContent() {
                                 })}
 
 
-                                <div ref={messagesEndRef} />
+                                <div ref={messagesEndRef} className="h-4" />
                             </div>
 
 
 
                             {/* Main Input Area */}
-                            <div className="p-4 md:p-6 space-y-4 border-t border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
+                            <div className="p-3 md:p-6 space-y-3 md:space-y-4 border-t border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
 
                                 {/* 1. Encrypt / Send Flow */}
-                                <div className="flex items-end gap-4">
+                                <div className="flex items-end gap-2 md:gap-4">
                                     <div className="flex-1 relative group">
                                         <div className="absolute -inset-0.5 bg-neon-green opacity-0 group-focus-within:opacity-20 blur rounded-2xl transition duration-500" />
                                         <textarea
@@ -569,11 +596,11 @@ function SecureMessengerContent() {
                                                     handleEncrypt();
                                                 }
                                             }}
-                                            placeholder="ENCRYPT_MESSAGE..."
+                                            placeholder="MESSAGE..."
                                             rows={1}
-                                            className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl px-6 py-4 text-sm text-neon-green font-mono placeholder:text-[var(--text-dim)] outline-none focus:border-neon-green/50 transition-all relative z-10 resize-none min-h-[56px] max-h-[200px] overflow-y-auto"
+                                            className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl px-4 md:px-6 py-3 md:py-4 text-xs md:text-sm text-neon-green font-mono placeholder:text-[var(--text-dim)] outline-none focus:border-neon-green/50 transition-all relative z-10 resize-none min-h-[48px] md:min-h-[56px] max-h-[150px] md:max-h-[200px] overflow-y-auto"
                                             style={{
-                                                height: inputText.split('\n').length > 1 ? `${Math.min(200, inputText.split('\n').length * 24 + 32)}px` : '56px'
+                                                height: inputText.split('\n').length > 1 ? `${Math.min(150, inputText.split('\n').length * 20 + 24)}px` : '48px'
                                             }}
                                         />
                                     </div>
@@ -592,20 +619,20 @@ function SecureMessengerContent() {
                                             }
                                         }}
                                         disabled={!inputText.trim()}
-                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 border border-neon-green/30 hover:bg-neon-green/10 ${inputText.trim() ? 'text-neon-green' : 'text-[var(--text-dim)] opacity-50'}`}
+                                        className={`w-12 md:w-14 h-12 md:h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 border border-neon-green/30 hover:bg-neon-green/10 ${inputText.trim() ? 'text-neon-green' : 'text-[var(--text-dim)] opacity-50'}`}
                                         title="Preview Ciphertext"
                                     >
-                                        <Shield size={22} />
+                                        <Shield size={20} className="md:w-6 md:h-6" />
                                     </button>
                                     <button
                                         onClick={handleEncrypt}
                                         disabled={!inputText.trim()}
-                                        className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 ${inputText.trim()
+                                        className={`w-12 md:w-14 h-12 md:h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 ${inputText.trim()
                                             ? 'bg-neon-green text-black shadow-[0_0_20px_rgba(0,255,157,0.4)] hover:scale-105 active:scale-95'
                                             : 'bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-dim)]'
                                             }`}
                                     >
-                                        <Send size={24} />
+                                        <Send size={20} className="md:w-6 md:h-6" />
                                     </button>
                                 </div>
 
@@ -678,7 +705,8 @@ function SecureMessengerContent() {
                                 </AnimatePresence>
 
                             </div>
-                        </>
+                        </div>
+                    </>
                     )}
                 </div>
             </div>

@@ -41,7 +41,7 @@ export default function SignupPage() {
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 flex flex-col items-center justify-center bg-[var(--background)] relative overflow-hidden">
+        <div className="min-h-screen pt-12 pb-12 flex flex-col items-center justify-center bg-[var(--background)] relative overflow-hidden">
             {/* Animated Background Elements */}
             <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
@@ -173,15 +173,19 @@ export default function SignupPage() {
                                 </span>
                             </button>
                         </form>
+
+                        {/* Consolidated Login Link */}
+                        <div className="mt-0 pt-0 border-t border-[var(--glass-border)] text-center">
+                            <p className="text-[var(--text-muted)] text-xs font-mono">
+                                Already have an account?{' '}
+                                <Link href="/login" className="text-purple-400 hover:text-purple-300 font-bold underline-offset-4 hover:underline transition-all">
+                                    Log In
+                                </Link>
+                            </p>
+                        </div>
                     </div>
                 </div>
 
-                <p className="mt-8 text-center text-sm text-[var(--text-dim)] font-mono">
-                    Already have an account?{' '}
-                    <Link href="/login" className="text-purple-400 hover:text-purple-300 font-bold underline-offset-4 hover:underline transition-all">
-                        Log In
-                    </Link>
-                </p>
             </motion.div>
         </div>
     );

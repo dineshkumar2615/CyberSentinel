@@ -88,12 +88,12 @@ export default function DeviceHealth({ hideHeader = false }: { hideHeader?: bool
     ];
 
     return (
-        <div className="w-full max-w-7xl mx-auto py-8 px-4 h-full flex flex-col">
+        <div className="w-full max-w-7xl mx-auto py-4 md:py-8 px-4 h-full flex flex-col">
             {/* Compact Header & Stats */}
             {!hideHeader && (
                 <div className="flex flex-col md:flex-row gap-6 mb-8 items-stretch md:h-32">
                     {/* Main Scan Control Card */}
-                    <div className="flex-1 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden group">
+                    <div className="flex-1 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-2xl p-4 md:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-r from-neon-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 
                         <div className="relative z-10">
@@ -101,7 +101,7 @@ export default function DeviceHealth({ hideHeader = false }: { hideHeader?: bool
                                 <ShieldCheck size={18} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">System Core Scan</span>
                             </div>
-                            <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight italic mb-1">
+                            <h1 className="text-2xl md:text-3xl font-black text-[var(--foreground)] tracking-tight italic mb-1">
                                 SYSTEM <span className="text-zinc-500">DIAGNOSTICS</span>
                             </h1>
                             <p className="text-[var(--foreground)]/50 text-xs font-mono">
@@ -125,7 +125,7 @@ export default function DeviceHealth({ hideHeader = false }: { hideHeader?: bool
                                         strokeLinecap="round"
                                     />
                                 </svg>
-                                <span className={`text-xl font-bold ${scanning ? 'text-neon-blue' : score > 80 ? 'text-emerald-500' : 'text-orange-500'}`}>
+                                <span className={`text-lg md:text-xl font-bold ${scanning ? 'text-neon-blue' : score > 80 ? 'text-emerald-500' : 'text-orange-500'}`}>
                                     {scanning ? Math.floor(scanProgress) : score}%
                                 </span>
                             </div>
@@ -161,7 +161,7 @@ export default function DeviceHealth({ hideHeader = false }: { hideHeader?: bool
             )}
 
             {/* Dashboard Grid Results */}
-            <div className="flex-1 min-h-[400px] relative bg-[var(--background)]/50 rounded-3xl border border-[var(--glass-border)] p-6 overflow-hidden">
+            <div className="flex-1 min-h-[300px] md:min-h-[400px] relative bg-[var(--background)]/50 rounded-2xl md:rounded-3xl border border-[var(--glass-border)] p-4 md:p-6 overflow-hidden">
                 {!results && !scanning && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-[var(--foreground)]/30">
                         <Activity size={64} className="mb-4 opacity-50" />

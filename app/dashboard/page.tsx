@@ -15,7 +15,7 @@ import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import ThreatDetailModal from "@/components/ThreatDetailModal";
 import { 
-    AreaChart, Area, ResponsiveContainer
+    AreaChart, Area, ResponsiveContainer, YAxis
 } from "recharts";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,10 +38,21 @@ interface Favorite {
     addedAt: string;
 }
 
+interface Notification {
+    _id: string;
+    type: 'messenger';
+    title: string;
+    message: string;
+    channelId?: string;
+    timestamp: string;
+    read: boolean;
+}
+
 interface DashboardData {
     threats: Threat[];
     savedThreats: Threat[];
     favorites: Favorite[];
+    notifications: Notification[];
     loading: boolean;
     lastFetched: Date | null;
     error: string | null;
@@ -90,6 +101,7 @@ const KPICard = ({ title, value, sub, trend, icon: Icon, iconBg, data, loading }
     iconBg: string; data: { value: number }[]; loading: boolean;
 }) => {
     const isPositive = trend.startsWith('+') || trend === '—';
+    const idBase = title.replace(/[^a-zA-Z0-9]/g, '-');
     return (
         <Card className="p-4 lg:p-5 flex flex-col justify-between h-full shadow-sm transition-all hover:scale-[1.02]">
             <div className="flex justify-between items-start mb-3">
@@ -117,12 +129,21 @@ const KPICard = ({ title, value, sub, trend, icon: Icon, iconBg, data, loading }
                 <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={data}>
                         <defs>
-                            <linearGradient id={`g-${title}`} x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0.3} />
+                            <linearGradient id={`g-${idBase}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0.4} />
                                 <stop offset="95%" stopColor={isPositive ? '#10B981' : '#EF4444'} stopOpacity={0} />
                             </linearGradient>
                         </defs>
-                        <Area type="monotone" dataKey="value" stroke={isPositive ? '#10B981' : '#EF4444'} strokeWidth={2} fillOpacity={1} fill={`url(#g-${title})`} />
+                        <YAxis hide domain={['dataMin - 10', 'dataMax + 10']} />
+                        <Area 
+                            type="monotone" 
+                            dataKey="value" 
+                            stroke={isPositive ? '#10B981' : '#EF4444'} 
+                            strokeWidth={3} 
+                            fillOpacity={1} 
+                            fill={`url(#g-${idBase})`} 
+                            animationDuration={1500}
+                        />
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
@@ -176,6 +197,7 @@ export default function DashboardPage() {
         threats: [],
         savedThreats: [],
         favorites: [],
+        notifications: [],
         loading: true,
         lastFetched: null,
         error: null,
@@ -227,32 +249,65 @@ export default function DashboardPage() {
     const fetchAll = useCallback(async () => {
         setData(prev => ({ ...prev, loading: true, error: null }));
         try {
-            const [threatsRes, savedRes, favsRes, maintRes] = await Promise.all([
+            const [threatsRes, savedRes, favsRes, maintRes, notifyRes] = await Promise.all([
                 fetch('/api/threats?days=7'),
                 fetch('/api/users/saved-threats'),
                 fetch('/api/favorites'),
-                fetch('/api/admin/maintenance')
+                fetch('/api/admin/maintenance'),
+                fetch('/api/users/notifications')
             ]);
             const threats: Threat[]       = threatsRes.ok ? await threatsRes.json() : [];
             const savedThreats: Threat[]  = savedRes.ok    ? await savedRes.json()   : [];
             const favsData                = favsRes.ok      ? await favsRes.json()    : {};
             const favorites: Favorite[]   = favsData.favorites || [];
+            const notifyData              = notifyRes.ok    ? await notifyRes.json()  : {};
+            const notifications: Notification[] = notifyData.notifications || [];
 
             if (maintRes.ok) {
                 const maintData = await maintRes.json();
                 setMaintenanceNews(maintData);
             }
 
-            setData({ threats, savedThreats, favorites, loading: false, lastFetched: new Date(), error: null });
+            setData({ threats, savedThreats, favorites, notifications, loading: false, lastFetched: new Date(), error: null });
         } catch (e) {
             setData(prev => ({ ...prev, loading: false, error: 'Failed to load dashboard data' }));
         }
     }, []);
 
+    const clearNotifications = async () => {
+        try {
+            const res = await fetch('/api/users/notifications', { method: 'DELETE' });
+            if (res.ok) {
+                setData(prev => ({ ...prev, notifications: [] }));
+            }
+        } catch (err) {
+            console.error('Failed to clear notifications', err);
+        }
+    };
+
+    const markNotificationRead = async (id: string) => {
+        try {
+            const res = await fetch('/api/users/notifications', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ notificationId: id })
+            });
+            if (res.ok) {
+                setData(prev => ({
+                    ...prev,
+                    notifications: prev.notifications.map(n => n._id === id ? { ...n, read: true } : n)
+                }));
+            }
+        } catch (err) {
+            console.error('Failed to mark read', err);
+        }
+    };
+
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     // ── Derived stats ────────────────────────────────────
-    const { threats, savedThreats, favorites, loading } = data;
+    const { threats, savedThreats, favorites, notifications, loading } = data;
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     const criticalCount  = threats.filter(t => t.severity === 'critical').length;
     const highCount      = threats.filter(t => t.severity === 'high').length;
@@ -296,7 +351,7 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] font-sans transition-colors duration-200">
 
             {/* ── TOP NAVBAR ─────────────────────────────────── */}
-            <header className="sticky top-0 z-40 h-16 flex items-center justify-between px-6 lg:px-10 bg-[var(--card-bg)] border-b border-[var(--glass-border)] backdrop-blur-xl">
+            <header className="fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4 lg:px-10 bg-[var(--card-bg)] border-b border-[var(--glass-border)] backdrop-blur-xl">
                 <div className="flex items-center gap-3">
                     <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
                         <Shield size={20} className="text-white" strokeWidth={2.5} />
@@ -340,7 +395,7 @@ export default function DashboardPage() {
                             className={`relative p-2 transition-colors rounded-xl ${isNotificationsOpen ? 'bg-indigo-500/10 text-indigo-500' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}
                         >
                             <Bell size={20} />
-                            {criticalCount > 0 && (
+                            {unreadCount > 0 && (
                                 <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
                             )}
                         </button>
@@ -351,16 +406,25 @@ export default function DashboardPage() {
                                     initial={{ opacity: 0, y: 10, scale: 0.95 }}
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                    className="absolute right-0 mt-3 w-80 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
+                                    className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 sm:w-80 sm:mt-0.5 mt-6 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl shadow-2xl overflow-hidden z-50 backdrop-blur-xl"
                                 >
-                                    <div className="px-5 py-4 border-b border-[var(--glass-border)] bg-indigo-500/5">
+                                    <div className="px-5 py-5 border-b border-[var(--glass-border)] bg-indigo-500/5 flex items-center justify-between">
                                         <h3 className="text-xs font-black text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
                                             <Bell size={14} className="text-indigo-500" /> Notifications
                                         </h3>
+                                        {notifications.length > 0 && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); clearNotifications(); }}
+                                                className="text-[9px] font-bold text-indigo-500 uppercase hover:underline"
+                                            >
+                                                Clear All
+                                            </button>
+                                        )}
                                     </div>
-                                    <div className="p-2 space-y-1">
-                                        {maintenanceNews?.isMaintenanceMode || maintenanceNews?.maintenanceStart ? (
-                                            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3">
+                                    <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-indigo-500/20">
+                                        {/* Maintenance Notification */}
+                                        {(maintenanceNews?.isMaintenanceMode || maintenanceNews?.maintenanceStart) && (
+                                            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3 mb-1">
                                                 <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 h-fit">
                                                     <AlertCircle size={16} />
                                                 </div>
@@ -369,18 +433,48 @@ export default function DashboardPage() {
                                                     <p className="text-[10px] text-[var(--foreground)] mt-1 leading-relaxed">
                                                         {maintenanceNews.maintenanceMessage || "Scheduled security upgrades are incoming."}
                                                     </p>
-                                                    {maintenanceNews.maintenanceStart && (
-                                                        <p className="text-[9px] text-[var(--text-muted)] mt-1.5 font-mono italic">
-                                                            Starts: {new Date(maintenanceNews.maintenanceStart).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
-                                                        </p>
-                                                    )}
                                                 </div>
                                             </div>
-                                        ) : (
+                                        )}
+
+                                        {/* Messenger Notifications */}
+                                        {notifications.length > 0 ? (
+                                            notifications.map((n) => (
+                                                <div 
+                                                    key={n._id}
+                                                    onClick={() => !n.read && markNotificationRead(n._id)}
+                                                    className={`p-3 rounded-xl border transition-all cursor-pointer group ${n.read ? 'bg-transparent border-transparent opacity-60' : 'bg-indigo-500/5 border-indigo-500/10 hover:border-indigo-500/30'}`}
+                                                >
+                                                    <div className="flex gap-3">
+                                                        <div className={`p-2 rounded-lg h-fit ${n.read ? 'bg-[var(--glass-bg)] text-[var(--text-muted)]' : 'bg-indigo-500/20 text-indigo-500'}`}>
+                                                            <MessageSquare size={16} />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex justify-between items-start gap-2">
+                                                                <p className={`text-[11px] font-bold uppercase tracking-tighter ${n.read ? 'text-[var(--text-muted)]' : 'text-indigo-500'}`}>
+                                                                    {n.title}
+                                                                </p>
+                                                                <span className="text-[8px] text-[var(--text-muted)] tabular-nums">
+                                                                    {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true }).replace('about ', '')}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-[var(--foreground)] mt-1 leading-relaxed line-clamp-2">
+                                                                {n.message}
+                                                            </p>
+                                                            {n.channelId && (
+                                                                <p className="text-[8px] font-mono text-[var(--text-dim)] mt-1 uppercase">
+                                                                    Channel: {n.channelId.substring(0, 12)}...
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : !maintenanceNews?.isMaintenanceMode && !maintenanceNews?.maintenanceStart && (
                                             <div className="py-8 text-center text-[var(--text-muted)]">
                                                 <CheckCircle size={28} className="mx-auto mb-2 opacity-30" />
                                                 <p className="text-xs font-bold uppercase tracking-widest">Systems Nominal</p>
-                                                <p className="text-[10px] mt-1 italic">No active maintenance detected.</p>
+                                                <p className="text-[10px] mt-1 italic">No active alerts detected.</p>
                                             </div>
                                         )}
                                     </div>
@@ -469,7 +563,7 @@ export default function DashboardPage() {
             </header>
 
             {/* ── MAIN ───────────────────────────────────────── */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 py-8 space-y-6">
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-10 pt-20 pb-28 md:pt-24 md:pb-8 space-y-4 md:space-y-6">
 
                 {/* Error Banner */}
                 {data.error && (
@@ -698,7 +792,7 @@ export default function DashboardPage() {
                                 {loading ? 'Loading…' : `${totalCount} events`}
                             </span>
                         </div>
-                        <div className="space-y-5 pl-3 border-l-2 border-[var(--glass-border)]">
+                        <div className="space-y-5 pl-0 border-l-2 border-[var(--glass-border)]">
                             {loading ? (
                                 Array.from({ length: 4 }, (_, i) => (
                                     <div key={i} className="relative pl-6">
@@ -709,7 +803,7 @@ export default function DashboardPage() {
                                 ))
                             ) : threats.slice(0, 5).map((t, i) => (
                                 <div key={t.id || i} className="relative pl-6 group">
-                                    <div className={`absolute -left-[19px] top-0 w-8 h-8 rounded-full bg-[var(--card-bg)] border-2 border-[var(--glass-border)] flex items-center justify-center group-hover:border-indigo-500 transition-colors ${
+                                    <div className={`absolute -left-[15px] top-0 w-8 h-8 rounded-full bg-[var(--card-bg)] border-2 border-[var(--glass-border)] flex items-center justify-center group-hover:border-indigo-500 transition-colors ${
                                         t.severity === 'critical' ? 'text-red-500' :
                                         t.severity === 'high'     ? 'text-orange-500' :
                                         t.severity === 'medium'   ? 'text-amber-500' : 'text-emerald-500'
@@ -743,10 +837,8 @@ export default function DashboardPage() {
                         </h3>
                          <div className="grid grid-cols-2 gap-4 flex-1">
                              {[
-                                 { label: "Refresh Data", icon: RefreshCw, color: "text-blue-500", bg: "bg-blue-500/10", glow: "shadow-[0_0_15px_rgba(59,130,246,0.3)]", action: fetchAll },
                                  { label: "Saved Threats", icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-500/10", glow: "shadow-[0_0_15px_rgba(99,102,241,0.3)]", action: () => setSavedThreatPopup(true) },
                                  { label: "Favourites", icon: Star, color: "text-amber-500", bg: "bg-amber-500/10", glow: "shadow-[0_0_15px_rgba(245,158,11,0.3)]", action: () => setFavPopup(true) },
-                                 { label: "System Scan", icon: Shield, color: "text-emerald-500", bg: "bg-emerald-500/10", glow: "shadow-[0_0_15px_rgba(16,185,129,0.3)]", action: fetchAll },
                              ].map((a, i) => (
                                  <button
                                      key={i}
@@ -770,9 +862,9 @@ export default function DashboardPage() {
 
             {/* ── SAVED THREATS POPUP ────────────────────── */}
             {savedThreatPopup && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSavedThreatPopup(false)}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setSavedThreatPopup(false)}>
                     <div
-                        className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl w-full max-w-xl shadow-2xl h-[600px] flex flex-col"
+                        className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl w-full max-w-xl shadow-2xl h-[500px] md:h-[600px] max-h-[85vh] flex flex-col"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -819,7 +911,7 @@ export default function DashboardPage() {
 
             {/* ── FAV CHATS POPUP ────────────────────────── */}
             {favPopup && (
-                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setFavPopup(false)}>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setFavPopup(false)}>
                     <div
                         className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl w-full max-w-xl shadow-2xl h-[600px] flex flex-col"
                         onClick={e => e.stopPropagation()}

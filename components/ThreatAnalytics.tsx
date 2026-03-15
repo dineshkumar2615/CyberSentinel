@@ -103,9 +103,6 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
             <div className="w-full">
                 <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-3">
                     <div>
-                        <div className="flex items-center gap-2 text-emerald-600 mb-1 uppercase font-black tracking-[0.25em] text-[10px]">
-                            <Activity size={13} /> Global_Threat_Intelligence
-                        </div>
                         <h2 className="text-xl sm:text-2xl font-black text-[var(--foreground)] italic tracking-tight uppercase leading-none">
                             Threat <span className="text-emerald-500">Analytics</span> & Patterns
                         </h2>
@@ -125,13 +122,27 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                             <TrendingUp size={17} className="text-emerald-500" />
                             <h3 className="text-xs font-black text-[var(--foreground)] uppercase tracking-widest italic opacity-80">Weekly Attack Velocity</h3>
                         </div>
-                        <div className="h-[240px]">
+                        <div className="h-[240px] -ml-4 sm:ml-0">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={trendData}>
+                                <LineChart data={trendData} margin={{ top: 5, right: 20, left: 0, bottom: 0 }}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="var(--glass-border)" vertical={false} />
-                                    <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dy={8} />
-                                    <YAxis stroke="var(--text-muted)" fontSize={10} tickLine={false} axisLine={false} dx={-8} />
-                                    <Tooltip contentStyle={tooltipStyle} itemStyle={itemStyle} labelStyle={labelStyle} />
+                                    <XAxis 
+                                        dataKey="name" 
+                                        stroke="var(--text-muted)" 
+                                        fontSize={10} 
+                                        tickLine={false} 
+                                        axisLine={false} 
+                                        dy={10}
+                                    />
+                                    <YAxis 
+                                        stroke="var(--text-muted)" 
+                                        fontSize={10} 
+                                        tickLine={false} 
+                                        axisLine={false} 
+                                        dx={-5} 
+                                        tickCount={5}
+                                    />
+                                    <Tooltip contentStyle={tooltipStyle} itemStyle={itemStyle} labelStyle={labelStyle} cursor={{ stroke: 'var(--glass-border)', strokeWidth: 1 }} />
                                     <Line type="monotone" dataKey="count" stroke="#10b981" strokeWidth={3}
                                         dot={{ r: 4, fill: 'var(--card-bg)', stroke: '#10b981', strokeWidth: 2 }}
                                         activeDot={{ r: 6, fill: '#10b981', strokeWidth: 0 }} />
@@ -191,7 +202,7 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                 {industryData.map((item, i) => (
                                     <div key={i} className="flex items-center gap-3 p-3 bg-[var(--background)]/30 rounded-xl border border-[var(--glass-border)] transition-colors hover:bg-[var(--foreground)]/5">
                                         <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.2)]" style={{ backgroundColor: item.color }} />

@@ -47,7 +47,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen pt-24 pb-12 flex flex-col items-center justify-center bg-[var(--background)] relative overflow-hidden transition-colors duration-300">
+        <div className="min-h-screen pt-12 pb-12 flex flex-col items-center justify-center bg-[var(--background)] relative overflow-hidden transition-colors duration-300">
             {/* Animated Background Elements - Theme Aware */}
             <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-neon-blue/10 rounded-full blur-[120px]" />
@@ -159,26 +159,18 @@ export default function LoginPage() {
                             </button>
                         </form>
 
-                        <div className="mt-8 pt-6 border-t border-[var(--glass-border)] flex flex-col items-center">
-                            <p className="text-[var(--text-muted)] text-xs font-mono mb-4 italic uppercase tracking-widest">Alternative Access</p>
-                            <div className="grid grid-cols-2 gap-4 w-full">
-                                <button className="flex items-center justify-center py-2 px-4 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg hover:bg-[var(--foreground)]/5 transition-colors group">
-                                    <Fingerprint className="w-5 h-5 text-[var(--text-muted)] group-hover:text-neon-blue" />
-                                </button>
-                                <button className="flex items-center justify-center py-2 px-4 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg hover:bg-[var(--foreground)]/5 transition-colors group">
-                                    <span className="text-xs font-bold text-[var(--text-muted)] group-hover:text-neon-blue font-mono">SSO</span>
-                                </button>
-                            </div>
+                        {/* Consolidated Signup Link */}
+                        <div className="mt-0 pt-0 border-t border-[var(--glass-border)] text-center">
+                            <p className="text-[var(--text-muted)] text-xs font-mono">
+                                Don't have an account?{' '}
+                                <Link href="/signup" className="text-neon-blue hover:text-neon-blue/80 font-bold underline-offset-4 hover:underline transition-all">
+                                    Sign Up
+                                </Link>
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <p className="mt-8 text-center text-sm text-[var(--text-dim)] font-mono">
-                    Don't have an account?{' '}
-                    <Link href="/signup" className="text-neon-blue hover:text-neon-blue/80 font-bold underline-offset-4 hover:underline transition-all">
-                        Sign Up
-                    </Link>
-                </p>
             </motion.div>
         </div>
     );

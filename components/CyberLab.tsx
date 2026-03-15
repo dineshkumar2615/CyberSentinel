@@ -258,7 +258,7 @@ export default function CyberLab() {
             </AnimatePresence>
 
             {/* Action Bar - Aligned Header */}
-            <div className="flex flex-row gap-2 md:gap-4 mb-8">
+            <div className="flex flex-row gap-2 md:gap-4 mb-6 md:mb-8">
                 <div className="flex-1 relative group">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-blue rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 animate-pulse"></div>
                     <div className="relative flex bg-[var(--background)] border border-[var(--glass-border)] rounded-xl overflow-hidden backdrop-blur-3xl shadow-[0_0_30px_rgba(0,210,255,0.05)]">
@@ -278,7 +278,7 @@ export default function CyberLab() {
 
                 <button
                     onClick={() => setShowHistory(!showHistory)}
-                    className={`px-4 py-3 sm:py-4 rounded-xl transition-all border flex items-center justify-center gap-2 ${showHistory ? 'bg-neon-purple text-black border-neon-purple' : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] hover:border-neon-purple'}`}
+                    className={`px-3 sm:px-4 py-3 sm:py-4 rounded-xl transition-all border flex items-center justify-center gap-2 flex-shrink-0 ${showHistory ? 'bg-neon-purple text-black border-neon-purple' : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] hover:border-neon-purple'}`}
                 >
                     <History size={18} />
                     <span className="hidden sm:inline font-mono text-[10px] uppercase font-black">History</span>
@@ -287,7 +287,7 @@ export default function CyberLab() {
                 <button
                     onClick={runAnalysis}
                     disabled={isScanning || !url}
-                    className={`px-4 sm:px-8 py-3 sm:py-4 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 border shadow-2xl relative overflow-hidden group/btn ${isScanning ? 'bg-[var(--card-bg)] border-[var(--glass-border)] text-[var(--foreground)]/50' :
+                    className={`px-3 sm:px-8 py-3 sm:py-4 rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-2 sm:gap-3 border shadow-2xl relative overflow-hidden group/btn flex-shrink-0 ${isScanning ? 'bg-[var(--card-bg)] border-[var(--glass-border)] text-[var(--foreground)]/50' :
                         !url ? 'bg-neon-blue/20 border-neon-blue/30 text-neon-blue/50 cursor-not-allowed' :
                             'bg-neon-blue text-black border-neon-blue shadow-neon-blue/40 hover:scale-[1.02] active:scale-95'
                         }`}
@@ -307,7 +307,7 @@ export default function CyberLab() {
                             exit={{ opacity: 0, x: 20 }}
                             className="lg:col-span-1 h-full order-1 lg:order-2"
                         >
-                            <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col min-h-[500px]">
+                             <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col min-h-[300px] lg:min-h-[500px]">
                                 <div className="p-4 border-b border-[var(--glass-border)] bg-[var(--glass-bg)] flex justify-between items-center">
                                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neon-purple flex items-center gap-2">
                                         <History size={14} /> Scan_Archive
@@ -408,7 +408,7 @@ export default function CyberLab() {
                                             <motion.div
                                                 animate={{ rotate: 360 }}
                                                 transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                                                className="w-40 h-40 sm:w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
+                                                 className="w-32 h-32 sm:w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
                                             />
                                             <motion.div
                                                 animate={{ rotate: -360 }}
@@ -416,14 +416,14 @@ export default function CyberLab() {
                                                 className="absolute inset-3 sm:inset-4 border border-neon-purple/20 rounded-full border-b-neon-purple"
                                             />
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                <div className="text-3xl sm:text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
+                                                 <div className="text-2xl sm:text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
                                                     {Math.round(scanProgress)}%
                                                 </div>
                                                 <div className="text-[7px] sm:text-[8px] text-neon-blue font-mono tracking-[0.3em] mt-1 sm:mt-2 animate-pulse">PATH_TRACE</div>
                                             </div>
 
-                                            <motion.div
-                                                className="absolute left-[-20%] right-[-20%] h-[2px] bg-neon-blue/50 shadow-[0_0_15px_#00d2ff] z-20"
+                                             <motion.div
+                                                className="absolute left-[-10%] right-[-10%] sm:left-[-20%] sm:right-[-20%] h-[1px] sm:h-[2px] bg-neon-blue/50 shadow-[0_0_15px_#00d2ff] z-20"
                                                 animate={{ top: ['0%', '100%', '0%'] }}
                                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                                             />
@@ -503,15 +503,15 @@ export default function CyberLab() {
                                                                     <CheckCircle className="text-neon-green" size={40} />}
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <h3 className={`text-lg font-black uppercase tracking-tighter mb-0.5 ${result.status === 'danger' ? 'text-neon-red' :
+                                                    <div className="flex-1">                                                         <h3 className={`text-sm sm:text-lg font-black uppercase tracking-tighter mb-0.5 ${result.status === 'danger' ? 'text-neon-red' :
                                                             result.status === 'suspicious' ? 'text-yellow-500' :
                                                                 'text-neon-green'
                                                             }`}>
-                                                            {result.status === 'danger' ? 'CRITICAL DETECTED' :
-                                                                result.status === 'suspicious' ? 'RISK MITIGATION' :
+                                                            {result.status === 'danger' ? 'THREAT DETECTED' :
+                                                                result.status === 'suspicious' ? 'RISK WARNING' :
                                                                     'SECURE DOMAIN'}
                                                         </h3>
+
                                                         <div className="flex items-center gap-2 text-[var(--text-muted)] font-mono text-[9px] uppercase tracking-widest">
                                                             <span>Safety Score: {result.riskScore}/100</span>
                                                             <span className="text-neon-purple/80 truncate max-w-[120px]">ID: {result.id.substring(0, 8)}...</span>

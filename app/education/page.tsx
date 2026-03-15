@@ -211,7 +211,7 @@ export default function EducationArchives() {
     const activeDossier = DOSSIERS.find(d => d.id === selectedId) || DOSSIERS[0];
 
     return (
-        <main className="min-h-screen pt-0 pb-5 px-4 md:px-8 max-w-[1600px] mx-auto flex flex-col items-center">
+        <main className="min-h-screen pt-0 pb-20 md:pb-5 px-4 md:px-8 max-w-[1600px] mx-auto flex flex-col items-center">
 
             {/* Refractive Command Portal (Header v4) */}
             <header className="w-full mb-8 sticky top-0 bg-[var(--background)]/60 backdrop-blur-2xl z-30 border-b border-[var(--glass-border)] rounded-b-3xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.05)]">
@@ -222,16 +222,16 @@ export default function EducationArchives() {
                     className="absolute bottom-0 h-[1px] w-48 bg-gradient-to-r from-transparent via-neon-blue to-transparent filter blur-[1px] opacity-70"
                 />
 
-                <div className="p-4 md:p-6 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="p-3 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
                     <div className="flex items-center gap-3 group cursor-pointer">
                         <div className="w-10 h-10 rounded-xl bg-neon-blue/10 border border-neon-blue/20 flex items-center justify-center text-neon-blue group-hover:scale-110 transition-transform">
                             <BookOpen size={20} />
                         </div>
                         <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                            <h1 className="text-xl font-black italic tracking-tighter text-[var(--foreground)] uppercase leading-none">
+                            <h1 className="text-lg md:text-xl font-black italic tracking-tighter text-[var(--foreground)] uppercase leading-none">
                                 Security <span className="text-neon-blue">Library</span>
                             </h1>
-                            <p className="text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-[0.2em] mt-1">Education_Center // ACTIVE</p>
+                            <p className="text-[8px] md:text-[9px] font-bold text-[var(--text-dim)] uppercase tracking-[0.2em] mt-1">Education_Center // ACTIVE</p>
                         </div>
                     </div>
 
@@ -298,7 +298,7 @@ export default function EducationArchives() {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2.5rem] p-8 md:p-12 relative overflow-hidden"
+                            className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[1.5rem] md:rounded-[2.5rem] p-5 md:p-12 relative overflow-hidden"
                         >
                             {/* Decorative Grid Lines */}
                             <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-[linear-gradient(var(--foreground)_1px,transparent_1px),linear-gradient(90deg,var(--foreground)_1px,transparent_1px)] bg-[size:50px_50px]" />
@@ -312,7 +312,7 @@ export default function EducationArchives() {
                                             <Shield size={32} />
                                         </div>
                                         <div>
-                                            <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter text-[var(--foreground)] uppercase mb-2 break-words">
+                                            <h2 className="text-2xl md:text-5xl font-black italic tracking-tighter text-[var(--foreground)] uppercase mb-2 break-words text-center md:text-left">
                                                 {activeDossier.title}
                                             </h2>
                                             <div className="flex gap-3">
@@ -324,9 +324,9 @@ export default function EducationArchives() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 mb-16">
                                     {/* Left: Mechanism & Lifecycle */}
-                                    <div className="space-y-12">
+                                    <div className="space-y-8 md:space-y-12">
                                         <section>
                                             <SectionHeader title="Mechanism" icon={Server} />
                                             <p className="text-[var(--text-muted)] text-sm leading-relaxed font-medium">
@@ -359,7 +359,7 @@ export default function EducationArchives() {
                                     </div>
 
                                     {/* Right: Forensics & Mitigation */}
-                                    <div className="space-y-12">
+                                    <div className="space-y-8 md:space-y-12">
                                         <section>
                                             <SectionHeader title="Packet & Log Forensics" icon={Eye} color="text-neon-green" />
                                             <div className="space-y-4">
@@ -394,13 +394,13 @@ export default function EducationArchives() {
                                 </div>
 
                                 {/* Warning / Ethics Footer */}
-                                <div className="mt-12 p-8 rounded-3xl bg-neon-red/5 border border-neon-red/10 flex items-start gap-6">
-                                    <div className="p-3 rounded-2xl bg-neon-red/10 text-neon-red mt-1">
+                                <div className="mt-8 md:mt-12 p-5 md:p-8 rounded-2xl md:rounded-3xl bg-neon-red/5 border border-neon-red/10 flex flex-col md:flex-row items-center md:items-start gap-4 md:gap-6 text-center md:text-left">
+                                    <div className="p-3 rounded-2xl bg-neon-red/10 text-neon-red">
                                         <AlertCircle size={24} />
                                     </div>
                                     <div>
-                                        <h4 className="text-neon-red font-black uppercase tracking-widest text-sm mb-2">Ethics & Compliance Protocol</h4>
-                                        <p className="text-xs text-[var(--text-dim)] leading-relaxed max-w-3xl">
+                                        <h4 className="text-neon-red font-black uppercase tracking-widest text-[10px] md:text-sm mb-2">Ethics & Compliance Protocol</h4>
+                                        <p className="text-[10px] md:text-xs text-[var(--text-dim)] leading-relaxed max-w-3xl">
                                             This dossier is intended for educational and defensive auditing purposes only.
                                             Unauthorized access to computer systems is illegal and violates global cybersecurity ethics.
                                             The data provided here excludes functional payloads to maintain system integrity.

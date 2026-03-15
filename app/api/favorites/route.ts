@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import dbConnect from '@/lib/db';
 import User from '@/lib/models/User';
+import { getChannelId } from '@/lib/encryption_backend';
 
 // GET /api/favorites - Fetch user's favorites
 export async function GET(req: NextRequest) {
@@ -57,11 +58,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Already in favorites' }, { status: 200 });
         }
 
+        // Calculate channelId for notifications
+        const channelId = getChannelId(key);
+
         // Add to favorites
         user.favorites = user.favorites || [];
         user.favorites.push({
             key,
             alias,
+            channelId,
             addedAt: new Date(),
         });
 

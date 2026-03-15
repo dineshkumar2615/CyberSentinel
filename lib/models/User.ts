@@ -45,10 +45,21 @@ const UserSchema = new mongoose.Schema({
             type: String,
             required: true,
         },
+        channelId: {
+            type: String, // SHA-256 hash of the key for notifications
+        },
         addedAt: {
             type: Date,
             default: Date.now,
         },
+    }],
+    notifications: [{
+        type: { type: String, default: 'messenger' },
+        title: { type: String, required: true },
+        message: { type: String, required: true },
+        channelId: { type: String },
+        timestamp: { type: Date, default: Date.now },
+        read: { type: Boolean, default: false }
     }],
     savedThreats: [{
         threatId: {

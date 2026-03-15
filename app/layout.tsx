@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body
-        className={`${sans.variable} ${mono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen pb-28 md:pb-0 font-sans transition-colors duration-300 relative selection:bg-neon-blue/30 overflow-x-hidden`}
+        className={`${sans.variable} ${mono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen flex flex-col md:pb-0 font-sans transition-colors duration-300 relative selection:bg-neon-blue/30 overflow-x-hidden`}
       >
         {/* Global Tech Grid Background - Subtle Texture */}
         <div className="fixed inset-0 z-[-1] pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
@@ -56,7 +56,9 @@ export default function RootLayout({
             <MaintenanceGuard>
               <MaintenanceBanner />
               <NavigationBar />
-              {children}
+              <div className="flex-1 pb-0">
+                {children}
+              </div>
             </MaintenanceGuard>
           </AuthProvider>
         </ThemeProvider>
@@ -64,4 +66,3 @@ export default function RootLayout({
     </html>
   );
 }
-
