@@ -106,7 +106,7 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                         <div className="flex items-center gap-2 text-emerald-600 mb-1 uppercase font-black tracking-[0.25em] text-[10px]">
                             <Activity size={13} /> Global_Threat_Intelligence
                         </div>
-                        <h2 className="text-2xl font-black text-[var(--foreground)] italic tracking-tight uppercase leading-none">
+                        <h2 className="text-xl sm:text-2xl font-black text-[var(--foreground)] italic tracking-tight uppercase leading-none">
                             Threat <span className="text-emerald-500">Analytics</span> & Patterns
                         </h2>
                     </div>
@@ -119,7 +119,7 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                     {/* Weekly Line Chart */}
                     <motion.div
                         initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
-                        className="lg:col-span-2 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-xl"
+                        className="lg:col-span-2 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-4 sm:p-6 shadow-xl min-w-0"
                     >
                         <div className="flex items-center gap-2 mb-5">
                             <TrendingUp size={17} className="text-emerald-500" />
@@ -144,7 +144,7 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                     <motion.div
                         initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                         transition={{ delay: 0.1 }}
-                        className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-xl"
+                        className="bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-4 sm:p-6 shadow-xl min-w-0"
                     >
                         <div className="flex items-center gap-2 mb-5">
                             <PieIcon size={17} className="text-emerald-500" />
@@ -174,7 +174,7 @@ export default function ThreatAnalytics({ threats }: AnalyticsProps) {
                     <motion.div
                         initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
                         transition={{ delay: 0.2 }}
-                        className="lg:col-span-3 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-6 shadow-xl"
+                        className="lg:col-span-3 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl p-4 sm:p-6 shadow-xl min-w-0"
                     >
                         <div className="flex items-center gap-2 mb-5">
                             <PieIcon size={17} className="text-emerald-500" />

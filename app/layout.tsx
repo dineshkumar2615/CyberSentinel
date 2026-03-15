@@ -19,7 +19,6 @@ const mono = JetBrains_Mono({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0c0c0c",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -29,14 +28,6 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "CyberSentinel | Live Threat Feed",
   description: "Real-time cyber threat intelligence",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "CyberSentinel",
-  },
-  formatDetection: {
-    telephone: false,
-  },
 };
 
 export default function RootLayout({
@@ -45,9 +36,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className="overflow-x-hidden">
       <body
-        className={`${sans.variable} ${mono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen pb-28 md:pb-0 font-sans transition-colors duration-300 relative selection:bg-neon-blue/30`}
+        className={`${sans.variable} ${mono.variable} antialiased bg-[var(--background)] text-[var(--foreground)] min-h-screen pb-28 md:pb-0 font-sans transition-colors duration-300 relative selection:bg-neon-blue/30 overflow-x-hidden`}
       >
         {/* Global Tech Grid Background - Subtle Texture */}
         <div className="fixed inset-0 z-[-1] pointer-events-none opacity-[0.03] dark:opacity-[0.05]"

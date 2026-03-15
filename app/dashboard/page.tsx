@@ -90,7 +90,7 @@ const KPICard = ({ title, value, sub, trend, icon: Icon, iconBg, data, loading }
 }) => {
     const isPositive = trend.startsWith('+') || trend === '—';
     return (
-        <Card className="p-5 flex flex-col justify-between h-full shadow-sm transition-all hover:scale-[1.02]">
+        <Card className="p-4 lg:p-5 flex flex-col justify-between h-full shadow-sm transition-all hover:scale-[1.02]">
             <div className="flex justify-between items-start mb-3">
                 <div className={`p-2.5 rounded-xl ${iconBg}`}>
                     <Icon size={20} />
@@ -136,7 +136,7 @@ const SplitKPICard = ({ items, loading }: {
     loading: boolean;
 }) => {
     return (
-        <Card className="p-5 flex flex-col justify-center h-full shadow-sm transition-all hover:scale-[1.02]">
+        <Card className="p-4 lg:p-5 flex flex-col justify-center h-full shadow-sm transition-all hover:scale-[1.02]">
             <div className="space-y-4">
                 {items.map((item, idx) => (
                     <div key={item.title}>

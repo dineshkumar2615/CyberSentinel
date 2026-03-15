@@ -312,7 +312,7 @@ export default function EducationArchives() {
                                             <Shield size={32} />
                                         </div>
                                         <div>
-                                            <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter text-[var(--foreground)] uppercase mb-2">
+                                            <h2 className="text-3xl md:text-5xl font-black italic tracking-tighter text-[var(--foreground)] uppercase mb-2 break-words">
                                                 {activeDossier.title}
                                             </h2>
                                             <div className="flex gap-3">

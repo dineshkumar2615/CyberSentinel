@@ -184,9 +184,9 @@ export default function DeviceHealth({ hideHeader = false }: { hideHeader?: bool
                             ))}
                         </div>
 
-                        <div className="grid grid-cols-3 gap-8 w-full max-w-4xl px-8 z-10">
+                        <div className="grid grid-cols-3 gap-4 lg:gap-8 w-full max-w-4xl px-4 lg:px-8 z-10">
                             {[1, 2, 3].map((i) => (
-                                <div key={i} className="h-64 bg-[var(--glass-bg)] rounded-2xl animate-pulse border border-[var(--glass-border)]" />
+                                <div key={i} className="h-48 lg:h-64 bg-[var(--glass-bg)] rounded-2xl animate-pulse border border-[var(--glass-border)]" />
                             ))}
                         </div>
                         <div className="mt-8 font-mono text-neon-blue text-xs animate-pulse z-10">
