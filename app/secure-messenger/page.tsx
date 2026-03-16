@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Key, Shield, MessageSquare, Trash2, Copy, Check, Eye, EyeOff, Save, RefreshCw, Smartphone, Send, ArrowRight, Star, X, Zap } from 'lucide-react';
+import { Lock, Key, Shield, MessageSquare, Trash2, Copy, Check, Eye, EyeOff, Save, RefreshCw, Smartphone, Send, ArrowRight, Star, X, Zap, Image as ImageIcon, ImagePlus, Maximize2 } from 'lucide-react';
 import { generateSessionKey, encryptMessage, decryptMessage } from '@/lib/encryption';
 import { saveSession, loadSession, deleteSession, ChatMessage, nukeAllData } from '@/lib/local-storage';
 
@@ -32,6 +32,11 @@ function SecureMessengerContent() {
     const channelIdRef = useRef<string | null>(null);
     const lastSyncTimeRef = useRef<number>(0);
     const deviceIdRef = useRef<string>('');
+    
+    // Image support state
+    const [isProcessingImage, setIsProcessingImage] = useState(false);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Initialize Device ID
     useEffect(() => {
@@ -100,6 +105,13 @@ function SecureMessengerContent() {
         setSessionKey(key);
         setIsSessionActive(true);
 
+        // Initialize Channel ID immediately
+        const encoder = new TextEncoder();
+        const data = encoder.encode(key);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        channelIdRef.current = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
         // Check favorites async
         const favStatus = await isFavorite(key, status === 'authenticated');
         setIsFav(favStatus);
@@ -163,26 +175,61 @@ function SecureMessengerContent() {
 
     // --- Messaging ---
 
-    const handleEncrypt = async () => {
-        if (!inputText.trim()) return;
+    const compressImage = (base64: string): Promise<string> => {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Max dimensions 1200px
+                const maxDim = 1200;
+                if (width > maxDim || height > maxDim) {
+                    if (width > height) {
+                        height = (height / width) * maxDim;
+                        width = maxDim;
+                    } else {
+                        width = (width / height) * maxDim;
+                        height = maxDim;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+                // Compress to JPEG with 0.7 quality
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.src = base64;
+        });
+    };
+
+    const sendEncryptedMessage = async (content: string, isImage: boolean = false) => {
+        if (!content.trim()) return;
 
         try {
-            const ciphertext = await encryptMessage(inputText, sessionKey);
-            setEncryptedOutput('');
-
+            const ciphertext = await encryptMessage(content, sessionKey);
+            
             const newMessage: ChatMessage = {
                 id: Date.now().toString(),
                 sender: 'me',
-                text: inputText,
+                text: content,
                 timestamp: Date.now(),
                 senderId: deviceIdRef.current
             };
 
-            const updated = [...messages, newMessage];
-            setMessages(updated);
-            setInputText('');
+            setMessages(prev => {
+                const updated = [...prev, newMessage];
+                if (isSaving) {
+                    saveSession(sessionKey, updated).catch(e => console.error(e));
+                }
+                return updated;
+            });
 
-            // Also send to database so the other person receives it without refresh
+            if (!isImage) setInputText('');
+
             if (channelIdRef.current) {
                 fetch('/api/messenger/messages', {
                     method: 'POST',
@@ -190,17 +237,51 @@ function SecureMessengerContent() {
                     body: JSON.stringify({
                         channelId: channelIdRef.current,
                         senderId: deviceIdRef.current,
+                        senderEmail: session?.user?.email,
                         encryptedPayload: ciphertext
                     })
                 }).catch(err => console.error("Failed to sync message", err));
             }
-
-            if (isSaving) {
-                await saveSession(sessionKey, updated);
-            }
         } catch (e) {
             console.error(e);
-            alert("Encryption Failed");
+            alert("Transmission Failed");
+        }
+    };
+
+    const handleEncrypt = async () => {
+        await sendEncryptedMessage(inputText);
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            alert("Please select an image file.");
+            return;
+        }
+
+        // Limit raw file size to 10MB before processing
+        if (file.size > 10 * 1024 * 1024) {
+            alert("File too large. Max 10MB.");
+            return;
+        }
+
+        setIsProcessingImage(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const imgData = event.target?.result as string;
+                const compressed = await compressImage(imgData);
+                await sendEncryptedMessage(compressed, true);
+                setIsProcessingImage(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            };
+            reader.readAsDataURL(file);
+        } catch (err) {
+            console.error("Image processing failed", err);
+            setIsProcessingImage(false);
+            alert("Failed to process image.");
         }
     };
 
@@ -219,13 +300,15 @@ function SecureMessengerContent() {
                 isDecrypted: true
             };
 
-            const updated = [...messages, newMessage];
-            setMessages(updated);
+            setMessages(prev => {
+                const updated = [...prev, newMessage];
+                if (isSaving) {
+                    saveSession(sessionKey, updated).catch(e => console.error(e));
+                }
+                return updated;
+            });
+            
             setDecryptInput('');
-
-            if (isSaving) {
-                await saveSession(sessionKey, updated);
-            }
         } catch (e) {
             console.error(e);
             alert("Decryption Failed. Ensure you are using the correct Session Key.");
@@ -257,8 +340,7 @@ function SecureMessengerContent() {
                 if (res.ok && isPolling) {
                     const data = await res.json();
                     if (data.messages && data.messages.length > 0) {
-                        let updatedMessages = [...messages];
-                        let hasNew = false;
+                        const newItems: ChatMessage[] = [];
                         let maxTimestamp = lastSyncTimeRef.current;
 
                         for (const msg of data.messages) {
@@ -266,7 +348,6 @@ function SecureMessengerContent() {
                             
                             // Only add if it's from someone else
                             if (msg.senderId !== deviceIdRef.current) {
-                                hasNew = true;
                                 let displayedText = msg.encryptedPayload;
                                 let isAutoDecrypted = false;
 
@@ -281,7 +362,7 @@ function SecureMessengerContent() {
                                     displayedText = "[Encrypted Message - Key Mismatch]";
                                 }
 
-                                updatedMessages.push({
+                                newItems.push({
                                     id: msg._id || msg.timestamp.toString(),
                                     sender: 'them',
                                     text: displayedText,
@@ -294,11 +375,23 @@ function SecureMessengerContent() {
 
                         lastSyncTimeRef.current = maxTimestamp;
 
-                        if (hasNew) {
-                            setMessages(updatedMessages);
-                            if (isSaving) {
-                                saveSession(sessionKey, updatedMessages).catch(e => console.error(e));
-                            }
+                        if (newItems.length > 0) {
+                            setMessages(prev => {
+                                // De-duplicate by checking ID or (timestamp + senderId)
+                                const combined = [...prev];
+                                for (const item of newItems) {
+                                    const exists = combined.some(m => 
+                                        m.id === item.id || 
+                                        (m.timestamp === item.timestamp && m.senderId === item.senderId)
+                                    );
+                                    if (!exists) combined.push(item);
+                                }
+                                
+                                if (isSaving) {
+                                    saveSession(sessionKey, combined).catch(e => console.error(e));
+                                }
+                                return combined;
+                            });
                         }
                     }
                 }
@@ -515,28 +608,45 @@ function SecureMessengerContent() {
                         <>
                             {/* Mobile Header (Active Session Only) */}
                             <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green">
-                                        <Lock size={16} />
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleToggleFavorite}
+                                        className={`p-2 rounded-xl border transition-all active:scale-95 flex items-center justify-center ${
+                                            isFav 
+                                            ? 'bg-neon-yellow/20 border-neon-yellow/40 text-neon-yellow shadow-[0_0_15px_rgba(234,179,8,0.2)]' 
+                                            : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
+                                        }`}
+                                        title={isFav ? "Remove from favorites" : "Add to favorites"}
+                                    >
+                                        <Star size={18} fill={isFav ? "currentColor" : "none"} />
+                                    </button>
+
+                                    <div className="w-10 h-10 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green">
+                                        <Lock size={18} />
                                     </div>
-                                    <div className="text-[10px] text-[var(--text-dim)] font-mono">
-                                        {sessionKey.substring(0, 6)}...{sessionKey.substring(sessionKey.length - 4)}
+
+                                    <div className="flex flex-col">
+                                        <div className="text-[10px] text-[var(--text-muted)] font-mono leading-none mb-1 uppercase tracking-wider">Session Key</div>
+                                        <div className="text-xs text-[var(--foreground)] font-mono font-bold leading-none">
+                                            {sessionKey.substring(0, 6)}...{sessionKey.substring(sessionKey.length - 4)}
+                                        </div>
                                     </div>
                                 </div>
+
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={handleLeaveSession}
-                                        className="p-2 rounded-lg bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] active:scale-95 transition-all"
+                                        className="p-2.5 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] active:scale-95 transition-all flex items-center justify-center"
                                         title="Close Channel"
                                     >
-                                        <X size={16} />
+                                        <X size={18} />
                                     </button>
                                     <button
                                         onClick={handleNuke}
-                                        className="p-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 active:scale-95 transition-all"
+                                        className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 active:scale-95 transition-all flex items-center justify-center"
                                         title="Nuke Session"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={18} />
                                     </button>
                                 </div>
                             </div>
@@ -565,7 +675,20 @@ function SecureMessengerContent() {
                                             : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
                                             } relative break-words overflow-hidden`}
                                         >
-                                            <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
+                                            {msg.text.startsWith('data:image/') ? (
+                                                <div className="relative group/img cursor-zoom-in" onClick={() => setPreviewImage(msg.text)}>
+                                                    <img 
+                                                        src={msg.text} 
+                                                        alt="Encrypted Transmission" 
+                                                        className="rounded-lg max-w-full h-auto border border-[var(--glass-border)]"
+                                                    />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                        <Maximize2 size={24} className="text-white" />
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
+                                            )}
                                             <span className="text-[8px] md:text-[9px] opacity-40 mt-1 md:mt-2 block font-mono text-right">
                                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
@@ -624,10 +747,29 @@ function SecureMessengerContent() {
                                     >
                                         <Shield size={20} className="md:w-6 md:h-6" />
                                     </button>
+                                    <input 
+                                        type="file" 
+                                        ref={fileInputRef} 
+                                        className="hidden" 
+                                        accept="image/*" 
+                                        onChange={handleFileChange}
+                                    />
+                                    <button
+                                        onClick={() => fileInputRef.current?.click()}
+                                        disabled={isProcessingImage}
+                                        className={`w-12 md:w-14 h-12 md:h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 border border-neon-green/30 hover:bg-neon-green/10 ${isProcessingImage ? 'opacity-50' : 'text-neon-green active:scale-95'}`}
+                                        title="Send Image"
+                                    >
+                                        {isProcessingImage ? (
+                                            <RefreshCw size={20} className="animate-spin" />
+                                        ) : (
+                                            <ImagePlus size={20} className="md:w-6 md:h-6" />
+                                        )}
+                                    </button>
                                     <button
                                         onClick={handleEncrypt}
-                                        disabled={!inputText.trim()}
-                                        className={`w-12 md:w-14 h-12 md:h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 ${inputText.trim()
+                                        disabled={!inputText.trim() || isProcessingImage}
+                                        className={`w-12 md:w-14 h-12 md:h-14 rounded-2xl flex items-center justify-center transition-all shrink-0 ${inputText.trim() && !isProcessingImage
                                             ? 'bg-neon-green text-black shadow-[0_0_20px_rgba(0,255,157,0.4)] hover:scale-105 active:scale-95'
                                             : 'bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--text-dim)]'
                                             }`}
@@ -710,6 +852,36 @@ function SecureMessengerContent() {
                     )}
                 </div>
             </div>
+
+            {/* Image Preview Modal */}
+            <AnimatePresence>
+                {previewImage && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 bg-black/95 backdrop-blur-xl" onClick={() => setPreviewImage(null)}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="relative max-w-full max-h-full flex items-center justify-center"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img 
+                                src={previewImage} 
+                                alt="Full Resolution" 
+                                className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl border border-white/10"
+                            />
+                            <button
+                                onClick={() => setPreviewImage(null)}
+                                className="absolute -top-4 -right-4 md:-top-10 md:-right-10 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-4 text-white/60 font-mono text-[10px] uppercase tracking-widest whitespace-nowrap">
+                                <Shield size={12} className="text-neon-green" /> End-to-End Encrypted Transmission
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </main>
     );
 }

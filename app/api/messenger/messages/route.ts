@@ -4,7 +4,7 @@ import SecureMessage from '@/lib/models/SecureMessage';
 
 export async function POST(request: Request) {
     try {
-        const { channelId, senderId, encryptedPayload } = await request.json();
+        const { channelId, senderId, senderEmail, encryptedPayload } = await request.json();
         
         if (!channelId || !senderId || !encryptedPayload) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -24,25 +24,31 @@ export async function POST(request: Request) {
             const User = (await import('@/lib/models/User')).default;
             
             // Find users who have this channelId in their favorites
-            // We exclude the sender if senderId is an email/userId (deviceIds are harder to filter against accounts but we try)
+            // Exclude the specific user who sent it via their email
             const targetUsers = await User.find({
                 'favorites.channelId': channelId,
-                email: { $ne: senderId } // Only works if senderId is user email
+                email: { $ne: senderEmail }
             });
 
             if (targetUsers.length > 0) {
-                const notification = {
-                    title: 'New Encrypted Message',
-                    message: `Incoming transmission on favorited channel ${channelId.substring(0, 8)}...`,
-                    channelId,
-                    timestamp: new Date(),
-                    read: false
-                };
+                // Personalize notifications for each user based on their specific alias
+                for (const targetUser of targetUsers) {
+                    const favorite = targetUser.favorites.find((f: any) => f.channelId === channelId);
+                    const chatName = favorite?.alias || `Channel ${channelId.substring(0, 8)}...`;
+                    
+                    const notification = {
+                        title: 'New Encrypted Message',
+                        message: `Incoming transmission on favorited chat: ${chatName}`,
+                        channelId,
+                        timestamp: new Date(),
+                        read: false
+                    };
 
-                await User.updateMany(
-                    { _id: { $in: targetUsers.map(u => u._id) } },
-                    { $push: { notifications: notification } }
-                );
+                    await User.updateOne(
+                        { _id: targetUser._id },
+                        { $push: { notifications: notification } }
+                    );
+                }
             }
         } catch (notifyError) {
             console.error('Failed to trigger notifications:', notifyError);

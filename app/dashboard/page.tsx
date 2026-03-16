@@ -35,6 +35,7 @@ interface Threat {
 interface Favorite {
     key: string;
     alias: string;
+    channelId?: string;
     addedAt: string;
 }
 
@@ -303,6 +304,23 @@ export default function DashboardPage() {
         }
     };
 
+    const handleNotificationClick = async (n: Notification) => {
+        if (!n.read) {
+            await markNotificationRead(n._id);
+        }
+
+        if (n.type === 'messenger' && n.channelId) {
+            // Find the key in favorites
+            const favorite = data.favorites.find(f => f.channelId === n.channelId);
+            if (favorite) {
+                router.push(`/secure-messenger?key=${encodeURIComponent(favorite.key)}`);
+            } else {
+                // FALLBACK: If we can't find the key, just go to messenger
+                router.push('/secure-messenger');
+            }
+        }
+    };
+
     useEffect(() => { fetchAll(); }, [fetchAll]);
 
     // ── Derived stats ────────────────────────────────────
@@ -442,7 +460,7 @@ export default function DashboardPage() {
                                             notifications.map((n) => (
                                                 <div 
                                                     key={n._id}
-                                                    onClick={() => !n.read && markNotificationRead(n._id)}
+                                                    onClick={() => handleNotificationClick(n)}
                                                     className={`p-3 rounded-xl border transition-all cursor-pointer group ${n.read ? 'bg-transparent border-transparent opacity-60' : 'bg-indigo-500/5 border-indigo-500/10 hover:border-indigo-500/30'}`}
                                                 >
                                                     <div className="flex gap-3">
