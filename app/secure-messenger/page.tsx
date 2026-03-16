@@ -38,15 +38,35 @@ function SecureMessengerContent() {
     const [previewImage, setPreviewImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const hashString = async (str: string) => {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(str);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    };
+
     // Initialize Device ID
     useEffect(() => {
-        let storedDeviceId = sessionStorage.getItem('secure_messenger_deviceId');
-        if (!storedDeviceId) {
-            storedDeviceId = `device_${Math.random().toString(36).substring(2, 10)}`;
-            sessionStorage.setItem('secure_messenger_deviceId', storedDeviceId);
-        }
-        deviceIdRef.current = storedDeviceId;
-    }, []);
+        const initDeviceId = async () => {
+            if (status === 'loading') return;
+
+            let id = '';
+            if (session?.user?.email) {
+                // Use hashed email for stable, cross-device ID
+                id = await hashString(session.user.email);
+            } else {
+                // Persistent ID for guest users (persists across tab closes)
+                id = localStorage.getItem('secure_messenger_deviceId') || '';
+                if (!id) {
+                    id = `guest_${Math.random().toString(36).substring(2, 10)}`;
+                    localStorage.setItem('secure_messenger_deviceId', id);
+                }
+            }
+            deviceIdRef.current = id;
+        };
+        initDeviceId();
+    }, [session, status]);
 
     // --- UI State ---
     const [showKey, setShowKey] = useState(false);
@@ -120,8 +140,13 @@ function SecureMessengerContent() {
         const sessionData = await loadSession(key);
         if (sessionData) {
             setMessages(sessionData.messages);
+            // Start sync from the last message we already have
+            if (sessionData.messages.length > 0) {
+                lastSyncTimeRef.current = Math.max(...sessionData.messages.map(m => m.timestamp));
+            }
         } else {
             setMessages([]);
+            lastSyncTimeRef.current = 0;
         }
     };
 
@@ -346,31 +371,30 @@ function SecureMessengerContent() {
                         for (const msg of data.messages) {
                             if (msg.timestamp > maxTimestamp) maxTimestamp = msg.timestamp;
                             
-                            // Only add if it's from someone else
-                            if (msg.senderId !== deviceIdRef.current) {
-                                let displayedText = msg.encryptedPayload;
-                                let isAutoDecrypted = false;
+                            // Correctly identify the sender
+                            const isMe = msg.senderId === deviceIdRef.current;
+                            let displayedText = msg.encryptedPayload;
+                            let isAutoDecrypted = false;
 
-                                // Auto-decrypt if key is available
-                                try {
-                                    if (sessionKey) {
-                                        displayedText = await decryptMessage(msg.encryptedPayload, sessionKey);
-                                        isAutoDecrypted = true;
-                                    }
-                                } catch (err) {
-                                    console.warn("Auto-decryption failed for message:", msg.timestamp);
-                                    displayedText = "[Encrypted Message - Key Mismatch]";
+                            // Auto-decrypt if key is available
+                            try {
+                                if (sessionKey) {
+                                    displayedText = await decryptMessage(msg.encryptedPayload, sessionKey);
+                                    isAutoDecrypted = true;
                                 }
-
-                                newItems.push({
-                                    id: msg._id || msg.timestamp.toString(),
-                                    sender: 'them',
-                                    text: displayedText,
-                                    timestamp: msg.timestamp,
-                                    senderId: msg.senderId,
-                                    isDecrypted: isAutoDecrypted
-                                });
+                            } catch (err) {
+                                console.warn("Auto-decryption failed for message:", msg.timestamp);
+                                displayedText = "[Encrypted Message - Key Mismatch]";
                             }
+
+                            newItems.push({
+                                id: msg._id || msg.timestamp.toString(),
+                                sender: isMe ? 'me' : 'them',
+                                text: displayedText,
+                                timestamp: msg.timestamp,
+                                senderId: msg.senderId,
+                                isDecrypted: isAutoDecrypted
+                            });
                         }
 
                         lastSyncTimeRef.current = maxTimestamp;
