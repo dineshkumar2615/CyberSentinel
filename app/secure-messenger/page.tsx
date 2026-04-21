@@ -169,8 +169,14 @@ function SecureMessengerContent() {
     const handleNuke = async () => {
         if (confirm("WARNING: This will permanently erase this chat session from this device. Proceed?")) {
             await deleteSession(sessionKey);
-            await removeFavorite(sessionKey, status === 'authenticated'); // Also remove from favorites
-            handleLeaveSession();
+            await removeFavorite(sessionKey, status === 'authenticated');
+            setMessages([]);
+            setIsSessionActive(false);
+            setSessionKey('');
+            setTempKeyInput('');
+            channelIdRef.current = null;
+            lastSyncTimeRef.current = 0;
+            router.replace('/secure-messenger');
         }
     };
 
@@ -674,7 +680,18 @@ function SecureMessengerContent() {
                                 </div>
 
                                 <div className="flex items-center gap-3 px-2">
-                                    <div className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${isSaving ? 'bg-neon-green' : 'bg-[var(--glass-border)]'}`} onClick={() => setIsSaving(!isSaving)}>
+                                    <div 
+                                        className={`w-8 h-4 rounded-full p-0.5 cursor-pointer transition-colors ${isSaving ? 'bg-neon-green' : 'bg-[var(--glass-border)]'}`} 
+                                        onClick={async () => {
+                                            const newSaving = !isSaving;
+                                            setIsSaving(newSaving);
+                                            if (!newSaving) {
+                                                await deleteSession(sessionKey);
+                                            } else {
+                                                await saveSession(sessionKey, messages);
+                                            }
+                                        }}
+                                    >
                                         <div className={`w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${isSaving ? 'translate-x-4' : 'translate-x-0'}`} />
                                     </div>
                                     <span className="text-[10px] font-bold uppercase text-[var(--text-dim)]">Persistence {isSaving ? 'ON' : 'OFF'}</span>
@@ -694,12 +711,12 @@ function SecureMessengerContent() {
                         </div>
                     ) : (
                         <>
-                            {/* Mobile Header (Active Session Only) */}
+                             {/* Mobile Header (Active Session Only) */}
                             <div className="md:hidden flex items-center justify-between p-4 border-b border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3 flex-1">
                                     <button
                                         onClick={handleToggleFavorite}
-                                        className={`p-2 rounded-xl border transition-all active:scale-95 flex items-center justify-center ${
+                                        className={`p-2 rounded-xl border transition-all active:scale-95 flex items-center justify-center shrink-0 ${
                                             isFav 
                                             ? 'bg-neon-yellow/20 border-neon-yellow/40 text-neon-yellow shadow-[0_0_15px_rgba(234,179,8,0.2)]' 
                                             : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--foreground)]'
@@ -709,19 +726,20 @@ function SecureMessengerContent() {
                                         <Star size={18} fill={isFav ? "currentColor" : "none"} />
                                     </button>
 
-                                    <div className="w-10 h-10 rounded-xl bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green">
-                                        <Lock size={18} />
-                                    </div>
-
-                                    <div className="flex flex-col">
-                                        <div className="text-[10px] text-[var(--text-muted)] font-mono leading-none mb-1 uppercase tracking-wider">Session Key</div>
-                                        <div className="text-xs text-[var(--foreground)] font-mono font-bold leading-none">
-                                            {sessionKey.substring(0, 6)}...{sessionKey.substring(sessionKey.length - 4)}
+                                    <div className="flex flex-col flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <div className="w-5 h-5 rounded-md bg-neon-green/10 border border-neon-green/20 flex items-center justify-center text-neon-green">
+                                                <Lock size={10} />
+                                            </div>
+                                            <div className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-wider">Session Key</div>
+                                        </div>
+                                        <div className="text-[11px] text-[var(--foreground)] font-mono font-bold leading-none truncate">
+                                            {sessionKey.substring(0, 10)}...{sessionKey.substring(sessionKey.length - 8)}
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 ml-4">
                                     <button
                                         onClick={handleLeaveSession}
                                         className="p-2.5 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] active:scale-95 transition-all flex items-center justify-center"

@@ -117,7 +117,7 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
                     )}
                 </div>
 
-                <div className="relative min-h-[240px] md:min-h-[280px] flex flex-col justify-center">
+                <div className="relative min-h-[380px] md:min-h-[280px] flex flex-col justify-center">
                     <AnimatePresence mode="wait">
                         {activeTab === 'threat' ? (
                             /* ── Threat Overview ── */
@@ -148,7 +148,7 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
                                     </h1>
 
                                     <div className="flex flex-col gap-2">
-                                        <p className="text-sm text-[var(--text-muted)] leading-relaxed line-clamp-3 md:line-clamp-none md:min-h-[4.5rem]">
+                                        <p className="text-[11px] md:text-sm text-[var(--text-muted)] leading-relaxed line-clamp-4 md:line-clamp-none md:min-h-[4.5rem]">
                                             {mainThreat.description}
                                         </p>
                                         <div className="flex flex-wrap items-center gap-3 justify-between">
