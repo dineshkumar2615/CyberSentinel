@@ -15,8 +15,10 @@ CyberSentinel OS is an advanced cybersecurity dashboard built for modern threat 
 
 *   🌍 **Live Threat Feed:** Aggregates real-time threat intelligence from leading sources globally.
 *   📊 **Threat Analytics:** Deep machine-speed analysis and intelligence scoring of IPs, URLs, and domains.
-*   💬 **Secure Messenger:** End-to-end encrypted, real-time chat with typing indicators and manual decryption protocols.
-*   🌓 **Dynamic Theming:** Sleek, futuristic dark/light mode UI optimized for analysts working in NOCs/SOCs.
+*   💬 **Secure Messenger:** End-to-end encrypted, real-time chat with message de-duplication and asynchronous offline notifications.
+*   🔒 **Neural Lab & Search Protection:** Critical forensic tools and search features are now gated behind secure authentication.
+*   🌓 **Dynamic Theming:** Sleek, futuristic dark/light mode UI with glassmorphism and neon accents.
+*   🔔 **Integrated Notification Center:** Real-time alerts for security events and incoming encrypted transmissions.
 *   🔒 **Endpoint Diagnostics:** Simulated local device heuristic array scanning.
 
 ---
