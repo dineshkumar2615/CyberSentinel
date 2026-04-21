@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, User, Shield, CreditCard, ArrowRight, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,6 +12,7 @@ export default function SignupPage() {
     const [username, setUsername] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showAnimation, setShowAnimation] = useState(false);
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +32,19 @@ export default function SignupPage() {
             if (!res.ok) {
                 setError(data.message || "Something went wrong");
             } else {
-                router.push("/login?signup=success");
+                // Auto-login after signup
+                const { signIn } = await import("next-auth/react");
+                await signIn("credentials", {
+                    email,
+                    password,
+                    redirect: false,
+                });
+
+                setShowAnimation(true);
+                setTimeout(() => {
+                    router.push("/");
+                    router.refresh();
+                }, 3000);
             }
         } catch (err) {
             setError("An error occurred. Please try again.");
@@ -187,6 +200,84 @@ export default function SignupPage() {
                 </div>
 
             </motion.div>
+
+            {/* New User Welcome Animation */}
+            <AnimatePresence>
+                {showAnimation && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--background)]"
+                    >
+                        {/* Matrix-like digital rain effect */}
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
+                            {[...Array(15)].map((_, i) => (
+                                <motion.div
+                                    key={i}
+                                    initial={{ y: -100 }}
+                                    animate={{ y: "100vh" }}
+                                    transition={{ duration: 5 + Math.random() * 5, repeat: Infinity, ease: "linear", delay: Math.random() * 5 }}
+                                    className="absolute text-purple-500 font-mono text-[10px] whitespace-nowrap"
+                                    style={{ left: (i * 7) + "%", writingMode: 'vertical-rl' }}
+                                >
+                                    {Array.from({ length: 20 }).map(() => Math.random() > 0.5 ? "1" : "0").join("")}
+                                </motion.div>
+                            ))}
+                        </div>
+
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.6 }}
+                            className="text-center z-10 px-6"
+                        >
+                            <motion.div
+                                initial={{ y: -20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.3 }}
+                                className="w-24 h-24 bg-purple-500/10 rounded-full flex items-center justify-center border-2 border-purple-500/30 shadow-[0_0_50px_rgba(168,85,247,0.4)] mx-auto mb-8"
+                            >
+                                <Shield className="w-12 h-12 text-purple-400" />
+                            </motion.div>
+
+                            <motion.h2
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.5 }}
+                                className="text-3xl md:text-5xl font-black italic tracking-tighter uppercase mb-4 text-[var(--foreground)]"
+                            >
+                                Welcome to <span className="text-purple-400">CyberSentinel</span>
+                            </motion.h2>
+
+                            <motion.p
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.7 }}
+                                className="text-xl md:text-2xl font-mono text-purple-400/80 mb-8 max-w-xl mx-auto"
+                            >
+                                Ready to explore the <span className="text-[var(--foreground)] font-bold">Cyber World</span>?
+                            </motion.p>
+
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: "100%" }}
+                                transition={{ delay: 1, duration: 1.5 }}
+                                className="h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent max-w-md mx-auto mb-8"
+                            />
+
+                            <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 2 }}
+                                className="text-xs font-mono text-[var(--text-muted)] uppercase tracking-[0.4em] animate-pulse"
+                            >
+                                Initializing Neural Uplink...
+                            </motion.p>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "CyberSentinel Encognito",
+  "version": "1.0",
+  "description": "Secure encrypted messaging overlay for third-party chat apps.",
+  "permissions": [
+    "storage",
+    "clipboardWrite",
+    "clipboardRead"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://web.whatsapp.com/*", "*://www.instagram.com/direct/*"],
+      "js": ["crypto.js", "content.js"],
+      "css": ["content.css"]
+    }
+  ],
+  "action": {
+    "default_title": "CyberSentinel",
+    "default_popup": "popup.html"
+  },
+  "host_permissions": [
+    "*://web.whatsapp.com/*",
+    "*://www.instagram.com/direct/*"
+  ]
+}

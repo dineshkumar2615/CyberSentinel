@@ -4,7 +4,7 @@ import SecureMessage from '@/lib/models/SecureMessage';
 
 export async function POST(request: Request) {
     try {
-        const { channelId, senderId, senderEmail, encryptedPayload } = await request.json();
+        const { channelId, senderId, senderEmail, encryptedPayload, clientMessageId } = await request.json();
         
         if (!channelId || !senderId || !encryptedPayload) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -16,6 +16,7 @@ export async function POST(request: Request) {
             channelId,
             senderId,
             encryptedPayload,
+            clientMessageId,
             timestamp: Date.now()
         });
 
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
                     const chatName = favorite?.alias || `Channel ${channelId.substring(0, 8)}...`;
                     
                     const notification = {
+                        type: 'messenger',
                         title: 'New Encrypted Message',
                         message: `Incoming transmission on favorited chat: ${chatName}`,
                         channelId,

@@ -8,7 +8,7 @@ import {
     Power, RefreshCw, ChevronRight, BarChart3,
     Cpu, HardDrive, Globe, Bell, Search,
     Calendar, Clock, ShieldCheck, MessageSquare,
-    Database, Zap, Lock
+    Database, Zap, Lock, KeyRound
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
@@ -32,11 +32,35 @@ export default function AdminDashboard() {
     const [isUpdating, setIsUpdating] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [userSearchQuery, setUserSearchQuery] = useState("");
+    const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
+
+    const toggleKeyVisibility = (email: string) => {
+        setVisibleKeys(prev => ({ ...prev, [email]: !prev[email] }));
+    };
+
+    const deleteUser = async (email: string) => {
+        if (!confirm(`Permanently delete user "${email}"? This cannot be undone.`)) return;
+        try {
+            const res = await fetch(`/api/admin/users?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+            if (res.ok) {
+                setStats((prev: any) => ({
+                    ...prev,
+                    users: prev.users.filter((u: any) => u.email !== email),
+                    activeUsers: (prev.activeUsers || 1) - 1
+                }));
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Failed to delete user');
+            }
+        } catch {
+            alert('Failed to delete user');
+        }
+    };
 
     const isAdmin = (session?.user as any)?.role === 'admin';
 
     useEffect(() => {
-        if (!isAdmin && status === 'authenticated') redirect("/dashboard");
+        if (!isAdmin && status === 'authenticated') redirect("/");
     }, [isAdmin, status]);
 
     const fetchData = async () => {
@@ -390,22 +414,57 @@ export default function AdminDashboard() {
                         </div>
 
                         <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
-                            {filteredUsers.map((user: any, i: number) => (
-                                <div key={i} className="p-3 rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] flex items-center justify-between group shadow-sm">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold text-emerald-500">
-                                            {user.email.charAt(0).toUpperCase()}
+                            {filteredUsers.map((user: any, i: number) => {
+                                const keyVisible = visibleKeys[user.email];
+                                // Derive a display key from email hash for visual purposes
+                                const maskedKey = user.email.split('').map((c: string) => c.charCodeAt(0).toString(16)).join('').substring(0, 24);
+                                return (
+                                <div key={i} className="p-3 rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] flex flex-col gap-2 group shadow-sm hover:border-[var(--foreground)]/20 transition-all">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-[10px] font-bold text-emerald-500 flex-shrink-0">
+                                                {user.email.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[11px] font-bold text-[var(--foreground)] truncate w-32">{user.email}</span>
+                                                <span className="text-[8px] text-[var(--text-muted)] uppercase tracking-tighter">Joined: {new Date(user.joined).toLocaleDateString()}</span>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-[11px] font-bold text-[var(--foreground)] truncate w-40">{user.email}</span>
-                                            <span className="text-[8px] text-[var(--text-muted)] uppercase tracking-tighter">Joined: {new Date(user.joined).toLocaleDateString()}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${user.role === 'admin' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
+                                                {user.role}
+                                            </span>
+                                            {/* Show Key Button */}
+                                            <button
+                                                onClick={() => toggleKeyVisibility(user.email)}
+                                                title={keyVisible ? 'Hide Key' : 'Show Key'}
+                                                className="p-1.5 rounded-lg border border-[var(--glass-border)] text-[var(--text-muted)] hover:border-emerald-500/40 hover:text-emerald-500 transition-all"
+                                            >
+                                                {keyVisible ? <EyeOff size={12} /> : <Eye size={12} />}
+                                            </button>
+                                            {/* Delete User Button */}
+                                            {user.role !== 'admin' && (
+                                                <button
+                                                    onClick={() => deleteUser(user.email)}
+                                                    title="Delete User"
+                                                    className="p-1.5 rounded-lg border border-[var(--glass-border)] text-[var(--text-muted)] hover:border-red-500/40 hover:text-red-500 transition-all"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded ${user.role === 'admin' ? 'bg-red-500/10 text-red-500' : 'bg-emerald-500/10 text-emerald-500'}`}>
-                                        {user.role}
-                                    </span>
+                                    {/* Key Row */}
+                                    {keyVisible && (
+                                        <div className="flex items-center gap-2 bg-[var(--glass-bg)] border border-emerald-500/20 rounded-lg px-3 py-1.5">
+                                            <KeyRound size={10} className="text-emerald-500 flex-shrink-0" />
+                                            <span className="text-[9px] font-mono text-emerald-400 tracking-widest flex-1 truncate">
+                                                {maskedKey}
+                                            </span>
+                                        </div>
+                                    )}
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </div>
 

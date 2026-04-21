@@ -4,16 +4,16 @@ import { Moon, Sun } from 'lucide-react';
 import { useTheme } from '@/context/ThemeContext';
 import { motion } from 'framer-motion';
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ className }: { className?: string }) {
     const { theme, toggleTheme } = useTheme();
 
     return (
         <button
             onClick={toggleTheme}
-            className={`p-3 rounded-full transition-all group relative overflow-hidden shadow-lg border z-50 ${theme === 'dark'
+            className={`rounded-full transition-all group relative overflow-hidden shadow-lg border z-50 ${theme === 'dark'
                 ? 'bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white'
                 : 'bg-white border-zinc-200 hover:bg-gray-100 text-zinc-900'
-                }`}
+                } ${className || 'p-3'}`}
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
         >
             <motion.div

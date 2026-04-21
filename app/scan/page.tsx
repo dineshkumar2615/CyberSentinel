@@ -16,9 +16,9 @@ export default function ScanPage() {
 
     return (
         <div className="flex min-h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden">
-            <main className="flex-1 min-h-screen bg-[var(--background)] p-4 md:p-8 overflow-y-auto">
-                <div className="max-w-6xl mx-auto pt-0 md:pt-6">
-                    <div className="mb-4 md:mb-8">
+            <main className="flex-1 min-h-screen bg-[var(--background)] p-2 md:p-4 overflow-y-auto">
+                <div className="max-w-6xl mx-auto">
+                    <div className="mb-2 md:mb-4">
                         <h1 className="text-2xl md:text-3xl font-black text-[var(--foreground)] mb-2 italic tracking-tighter uppercase">
                             NEURAL <span className="text-neon-green">SCANNER</span>
                         </h1>

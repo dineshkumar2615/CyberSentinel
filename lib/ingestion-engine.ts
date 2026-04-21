@@ -3,6 +3,7 @@ import ThreatModel from './models/Threat';
 import dbConnect from './db';
 
 const NEWS_API_KEY = process.env.NEWS_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 export async function ingestCISAThreats() {
     try {
@@ -19,18 +20,21 @@ export async function ingestCISAThreats() {
         const recentVulnerabilities = vulnerabilities.slice(-20).reverse();
 
         let ingestedCount = 0;
+        const vulnerabilitiesToProcess = recentVulnerabilities.slice(0, 5);
 
-        for (const v of recentVulnerabilities) {
+        for (const v of vulnerabilitiesToProcess) {
             const originalId = `CISA-${v.cveID}`;
 
             // Check if already exists
             const existing = await ThreatModel.findOne({ originalId });
             if (existing) continue;
 
+            const aiSummary = await summarizeWithGemini(v.vulnerabilityName, v.shortDescription || `Vulnerability in ${v.product} ${v.vendorProject}. ${v.requiredAction}`);
+
             const newThreat = {
                 id: v.cveID,
-                title: simplifyTitle(v.vulnerabilityName),
-                description: v.shortDescription || `Vulnerability in ${v.product} ${v.vendorProject}. ${v.requiredAction}`,
+                title: aiSummary.title || simplifyTitle(v.vulnerabilityName),
+                description: aiSummary.summary || v.shortDescription || `Vulnerability in ${v.product} ${v.vendorProject}. ${v.requiredAction}`,
                 severity: determineCISASeverity(v),
                 imageUrl: '/images/threat-cisa.png',
                 source: 'CISA KEV',
@@ -111,7 +115,7 @@ export async function ingestMediaNews() {
             }
         }
 
-        const filteredItems = Array.from(uniqueItemsMap.values());
+        const filteredItems = Array.from(uniqueItemsMap.values()).slice(0, 8); // Limit to 8 news items to save Gemini quota
         let ingestedCount = 0;
 
         for (const item of filteredItems) {
@@ -140,10 +144,13 @@ export async function ingestMediaNews() {
             const severity = determineNewsSeverity(item);
             const isHighlighted = severity === 'critical';
 
+            const cleanDescription = item.description.replace(/<[^>]*>?/gm, '').substring(0, 1000);
+            const aiSummary = await summarizeWithGemini(item.title, cleanDescription);
+
             const newThreat = {
                 id: `NEWS-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                title: simplifyTitle(item.title),
-                description: item.description.replace(/<[^>]*>?/gm, '').substring(0, 300) + '...',
+                title: aiSummary.title || simplifyTitle(item.title),
+                description: aiSummary.summary || cleanDescription.substring(0, 300) + '...',
                 severity: severity,
                 isHighlighted: isHighlighted,
                 imageUrl: imageUrl,
@@ -271,6 +278,51 @@ function simplifyTitle(title: string): string {
     if (simple.length < 5) return title.length > 50 ? title.substring(0, 47) + '...' : title;
 
     return simple;
+}
+
+async function summarizeWithGemini(title: string, description: string): Promise<{ title: string; summary: string }> {
+    if (!GEMINI_API_KEY) {
+        return { title: '', summary: '' };
+    }
+
+    try {
+        const prompt = `You are a cybersecurity expert. I will give you a threat title and a description.
+        Your task is:
+        1. Simplify the title to be catchy and non-technical (max 10 words).
+        2. Summarize the description into 2-3 concise sentences. DO NOT use "..." or cut off sentences. Make it a complete paragraph.
+        
+        Return ONLY a JSON object with keys "title" and "summary".
+        
+        TITLE: ${title}
+        DESCRIPTION: ${description}`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }]
+            })
+        });
+
+        if (!response.ok) throw new Error('Gemini API call failed');
+
+        const data = await response.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (!textResponse) throw new Error('Empty response from Gemini');
+
+        // Extract JSON from the response (sometimes Gemini wraps it in ```json)
+        const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+        const result = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+
+        return {
+            title: result?.title || '',
+            summary: result?.summary || ''
+        };
+    } catch (error) {
+        console.error('Gemini Summarization Error:', error);
+        return { title: '', summary: '' };
+    }
 }
 
 function generateStableScore(id: string): number {

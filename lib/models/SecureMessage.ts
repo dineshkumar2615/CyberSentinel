@@ -14,6 +14,10 @@ const SecureMessageSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    clientMessageId: {
+        type: String,
+        index: true,
+    },
     timestamp: {
         type: Number,
         default: () => Date.now(),

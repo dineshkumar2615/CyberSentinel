@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, Key, Shield, MessageSquare, Trash2, Copy, Check, Eye, EyeOff, Save, RefreshCw, Smartphone, Send, ArrowRight, Star, X, Zap, Image as ImageIcon, ImagePlus, Maximize2 } from 'lucide-react';
+import { Lock, Key, Shield, MessageSquare, Trash2, Copy, Check, Eye, EyeOff, Save, RefreshCw, Smartphone, Send, ArrowRight, Star, X, Zap, Image as ImageIcon, ImagePlus, Maximize2, KeyRound } from 'lucide-react';
 import { generateSessionKey, encryptMessage, decryptMessage } from '@/lib/encryption';
 import { saveSession, loadSession, deleteSession, ChatMessage, nukeAllData } from '@/lib/local-storage';
 
@@ -74,6 +74,7 @@ function SecureMessengerContent() {
     const [isSaving, setIsSaving] = useState(true); // Default to save, can toggle off
     const [showFavModal, setShowFavModal] = useState(false);
     const [favAliasInput, setFavAliasInput] = useState('');
+    const [showExtensionModal, setShowExtensionModal] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const lastJoinedKey = useRef<string | null>(null);
 
@@ -237,12 +238,14 @@ function SecureMessengerContent() {
         try {
             const ciphertext = await encryptMessage(content, sessionKey);
             
+            const clientMessageId = Date.now().toString() + '_' + Math.random().toString(36).substring(2, 9);
             const newMessage: ChatMessage = {
-                id: Date.now().toString(),
+                id: clientMessageId,
                 sender: 'me',
                 text: content,
                 timestamp: Date.now(),
-                senderId: deviceIdRef.current
+                senderId: deviceIdRef.current,
+                clientMessageId: clientMessageId
             };
 
             setMessages(prev => {
@@ -263,7 +266,8 @@ function SecureMessengerContent() {
                         channelId: channelIdRef.current,
                         senderId: deviceIdRef.current,
                         senderEmail: session?.user?.email,
-                        encryptedPayload: ciphertext
+                        encryptedPayload: ciphertext,
+                        clientMessageId: clientMessageId
                     })
                 }).catch(err => console.error("Failed to sync message", err));
             }
@@ -393,7 +397,8 @@ function SecureMessengerContent() {
                                 text: displayedText,
                                 timestamp: msg.timestamp,
                                 senderId: msg.senderId,
-                                isDecrypted: isAutoDecrypted
+                                isDecrypted: isAutoDecrypted,
+                                clientMessageId: msg.clientMessageId
                             });
                         }
 
@@ -405,6 +410,7 @@ function SecureMessengerContent() {
                                 const combined = [...prev];
                                 for (const item of newItems) {
                                     const exists = combined.some(m => 
+                                        (item.clientMessageId && m.clientMessageId === item.clientMessageId) ||
                                         m.id === item.id || 
                                         (m.timestamp === item.timestamp && m.senderId === item.senderId)
                                     );
@@ -448,7 +454,7 @@ function SecureMessengerContent() {
     if (status === 'loading') return <div className="min-h-screen bg-[var(--background)]" />;
 
     return (
-        <main className="h-screen md:min-h-screen pt-0 pb-16 md:pb-10 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-hidden md:overflow-visible">
+        <main className="h-screen md:min-h-screen pt-8 pb-16 md:pt-12 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-hidden md:overflow-visible">
             {/* Favorite Modal */}
             <AnimatePresence>
                 {showFavModal && (
@@ -498,6 +504,50 @@ function SecureMessengerContent() {
                 )}
             </AnimatePresence>
 
+            {/* Extension Modal */}
+            <AnimatePresence>
+                {showExtensionModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[var(--card-bg)] border border-neon-green/30 rounded-2xl p-6 w-full max-w-md shadow-[0_0_30px_rgba(0,255,157,0.1)] relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 inset-x-0 h-1 bg-neon-green/50" />
+                            <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+                                <Zap size={80} className="text-neon-green" />
+                            </div>
+
+                            <h3 className="text-xl font-black italic uppercase text-[var(--foreground)] mb-2 flex items-center gap-2">
+                                <Zap className="text-neon-green" fill="currentColor" size={24} />
+                                Permission Request
+                            </h3>
+                            <p className="text-xs text-[var(--text-dim)] mb-6 leading-relaxed">
+                                To use CyberSentinel Cipher across your favorite messengers, we request your permission to download the secure browser extension directly to your device. This extension operates entirely locally.
+                            </p>
+
+                            <div className="flex gap-3 pt-2 border-t border-[var(--glass-border)]">
+                                <button
+                                    onClick={() => setShowExtensionModal(false)}
+                                    className="flex-1 py-3 rounded-xl border border-[var(--glass-border)] text-[var(--text-dim)] font-bold uppercase text-xs hover:bg-[var(--glass-bg)] transition-colors"
+                                >
+                                    Deny
+                                </button>
+                                <a
+                                    href="/extension.zip"
+                                    download
+                                    onClick={() => setShowExtensionModal(false)}
+                                    className="flex-1 py-3 rounded-xl bg-neon-green text-black font-black uppercase text-[10px] sm:text-xs hover:bg-neon-green/90 transition-colors shadow-lg shadow-neon-green/20 text-center flex items-center justify-center"
+                                >
+                                    Grant & Download
+                                </a>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
             {/* Background Ambience */}
             <div className="fixed inset-0 pointer-events-none opacity-20 z-0">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_40%,rgba(0,255,157,0.05),transparent_70%)]" />
@@ -507,7 +557,7 @@ function SecureMessengerContent() {
             <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center max-w-lg mx-auto' : 'grid lg:grid-cols-12 flex-1 md:h-[calc(100vh-140px)] lg:h-[85vh]'}`}>
 
                 {/* LEFT PANEL: Session Control */}
-                <div className={`${isSessionActive ? 'lg:col-span-4' : 'w-full'} flex flex-col gap-6`}>
+                <div className={`${isSessionActive ? 'lg:col-span-4' : 'w-full'} flex flex-col gap-6 justify-center`}>
                     {/* Header Card */}
                     <div className={`bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] p-8 relative overflow-hidden ${isSessionActive ? 'hidden md:block' : 'block'}`}>
                         <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
@@ -528,9 +578,23 @@ function SecureMessengerContent() {
                             )}
                         </div>
 
-                        <p className="text-[10px] font-mono text-[var(--text-dim)] uppercase tracking-widest mb-6">
-                            Zero-Knowledge
-                        </p>
+                        <div className="flex justify-between items-center mb-6">
+                            <p className="text-[10px] font-mono text-[var(--text-dim)] uppercase tracking-widest leading-none">
+                                Zero-Knowledge
+                            </p>
+                            <button 
+                                onClick={() => {
+                                    if (status !== 'authenticated') {
+                                        router.push('/login');
+                                        return;
+                                    }
+                                    setShowExtensionModal(true);
+                                }}
+                                className="text-[10px] font-bold text-neon-green uppercase flex items-center gap-1 hover:underline"
+                            >
+                                <Zap size={12} /> Browser Extension
+                            </button>
+                        </div>
 
                         {!isSessionActive ? (
                             <div className="space-y-6">
@@ -554,9 +618,9 @@ function SecureMessengerContent() {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={handleGenerateKey}
-                                            className="flex-1 py-2 rounded-lg border border-neon-green/20 bg-neon-green/5 text-neon-green text-[10px] font-bold uppercase hover:bg-neon-green/10 transition-colors flex items-center justify-center gap-2"
+                                            className="flex-1 py-2 rounded-lg border border-neon-green/20 bg-neon-green/5 text-neon-green text-[10px] font-bold uppercase hover:bg-neon-green/10 transition-all flex items-center justify-center gap-2 group hover:scale-[1.02] active:scale-95"
                                         >
-                                            <RefreshCw size={12} /> Generate New
+                                            <KeyRound size={12} className="group-hover:rotate-12 transition-transform duration-300" /> Generate New
                                         </button>
                                         <button
                                             onClick={() => copyToClipboard(tempKeyInput)}

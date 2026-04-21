@@ -439,16 +439,16 @@ export default function DashboardPage() {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="max-h-[500px] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-indigo-500/20">
+                                    <div className="max-h-[380px] overflow-y-auto p-2 space-y-1 scrollbar-thin scrollbar-thumb-indigo-500/20">
                                         {/* Maintenance Notification */}
                                         {(maintenanceNews?.isMaintenanceMode || maintenanceNews?.maintenanceStart) && (
-                                            <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-3 mb-1">
-                                                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-500 h-fit">
-                                                    <AlertCircle size={16} />
+                                            <div className="p-2.5 rounded-xl bg-amber-500/5 border border-amber-500/10 flex gap-2.5 mb-1">
+                                                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500 h-fit">
+                                                    <AlertCircle size={14} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-[11px] font-bold text-amber-500 uppercase tracking-tighter">System Maintenance</p>
-                                                    <p className="text-[10px] text-[var(--foreground)] mt-1 leading-relaxed">
+                                                    <p className="text-[10px] font-bold text-amber-500 uppercase tracking-tighter">System Maintenance</p>
+                                                    <p className="text-[9px] text-[var(--foreground)] mt-0.5 leading-tight">
                                                         {maintenanceNews.maintenanceMessage || "Scheduled security upgrades are incoming."}
                                                     </p>
                                                 </div>
@@ -461,27 +461,27 @@ export default function DashboardPage() {
                                                 <div 
                                                     key={n._id}
                                                     onClick={() => handleNotificationClick(n)}
-                                                    className={`p-3 rounded-xl border transition-all cursor-pointer group ${n.read ? 'bg-transparent border-transparent opacity-60' : 'bg-indigo-500/5 border-indigo-500/10 hover:border-indigo-500/30'}`}
+                                                    className={`p-2 rounded-xl border transition-all cursor-pointer group ${n.read ? 'bg-transparent border-transparent opacity-60' : 'bg-indigo-500/5 border-indigo-500/10 hover:border-indigo-500/30'}`}
                                                 >
-                                                    <div className="flex gap-3">
-                                                        <div className={`p-2 rounded-lg h-fit ${n.read ? 'bg-[var(--glass-bg)] text-[var(--text-muted)]' : 'bg-indigo-500/20 text-indigo-500'}`}>
-                                                            <MessageSquare size={16} />
+                                                    <div className="flex gap-2.5">
+                                                        <div className={`p-1.5 rounded-lg h-fit ${n.read ? 'bg-[var(--glass-bg)] text-[var(--text-muted)]' : 'bg-indigo-500/20 text-indigo-500'}`}>
+                                                            <MessageSquare size={14} />
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex justify-between items-start gap-2">
-                                                                <p className={`text-[11px] font-bold uppercase tracking-tighter ${n.read ? 'text-[var(--text-muted)]' : 'text-indigo-500'}`}>
+                                                                <p className={`text-[10px] font-bold uppercase tracking-tighter ${n.read ? 'text-[var(--text-muted)]' : 'text-indigo-500'}`}>
                                                                     {n.title}
                                                                 </p>
                                                                 <span className="text-[8px] text-[var(--text-muted)] tabular-nums">
                                                                     {formatDistanceToNow(new Date(n.timestamp), { addSuffix: true }).replace('about ', '')}
                                                                 </span>
                                                             </div>
-                                                            <p className="text-[10px] text-[var(--foreground)] mt-1 leading-relaxed line-clamp-2">
+                                                            <p className="text-[10px] text-[var(--foreground)] mt-0.5 leading-tight line-clamp-1">
                                                                 {n.message}
                                                             </p>
                                                             {n.channelId && (
-                                                                <p className="text-[8px] font-mono text-[var(--text-dim)] mt-1 uppercase">
-                                                                    Channel: {n.channelId.substring(0, 12)}...
+                                                                <p className="text-[7px] font-mono text-[var(--text-dim)] mt-0.5 uppercase">
+                                                                    Channel: {n.channelId.substring(0, 8)}...
                                                                 </p>
                                                             )}
                                                         </div>

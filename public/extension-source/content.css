@@ -1,0 +1,360 @@
+/* CyberSentinel Cipher Extension Widget Styles */
+
+#cs-widget-root {
+    --cs-primary: #00ff9d;
+    --cs-primary-rgba-01: rgba(0, 255, 157, 0.1);
+    --cs-primary-rgba-02: rgba(0, 255, 157, 0.2);
+    --cs-primary-rgba-03: rgba(0, 255, 157, 0.3);
+    --cs-primary-rgba-04: rgba(0, 255, 157, 0.4);
+    --cs-primary-rgba-05: rgba(0, 255, 157, 0.5);
+    --cs-btn-bg: #00ff9d;
+    --cs-btn-text: black;
+    --cs-select-bg: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2300ff9d%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+#cs-widget-root[data-theme="whatsapp"] {
+    --cs-primary: #25D366;
+    --cs-primary-rgba-01: rgba(37, 211, 102, 0.1);
+    --cs-primary-rgba-02: rgba(37, 211, 102, 0.2);
+    --cs-primary-rgba-03: rgba(37, 211, 102, 0.3);
+    --cs-primary-rgba-04: rgba(37, 211, 102, 0.4);
+    --cs-primary-rgba-05: rgba(37, 211, 102, 0.5);
+    --cs-btn-bg: #00A884;
+    --cs-btn-text: white;
+    --cs-select-bg: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%2325D366%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+#cs-widget-root[data-theme="instagram"] {
+    --cs-primary: #E1306C;
+    --cs-primary-rgba-01: rgba(225, 48, 108, 0.1);
+    --cs-primary-rgba-02: rgba(225, 48, 108, 0.2);
+    --cs-primary-rgba-03: rgba(225, 48, 108, 0.3);
+    --cs-primary-rgba-04: rgba(225, 48, 108, 0.4);
+    --cs-primary-rgba-05: rgba(225, 48, 108, 0.5);
+    --cs-btn-bg: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+    --cs-btn-text: white;
+    --cs-select-bg: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23E1306C%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+}
+#cs-widget-root {
+    position: fixed;
+    width: 340px;
+    background-color: rgba(10, 15, 20, 0.95);
+    border: 1px solid var(--cs-primary-rgba-03);
+    border-radius: 12px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 15px var(--cs-primary-rgba-01);
+    z-index: 999999;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #e5e7eb;
+    backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#cs-widget-root * {
+    box-sizing: border-box;
+}
+
+.cs-widget-header {
+    background-color: var(--cs-primary-rgba-01);
+    border-bottom: 1px solid var(--cs-primary-rgba-02);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.cs-title {
+    font-weight: 800;
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--cs-primary);
+    font-style: italic;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+}
+
+.cs-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 10px;
+    text-transform: uppercase;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.cs-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.cs-widget-body {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+}
+
+.cs-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.cs-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--cs-primary);
+    font-family: monospace;
+    font-size: 12px;
+    outline: none;
+    transition: all 0.2s;
+    width: 100%;
+}
+
+.cs-input:focus {
+    border-color: var(--cs-primary-rgba-05);
+}
+
+.cs-input::placeholder {
+    color: #6b7280;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+#cs-custom-select {
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+}
+
+#cs-select-selected {
+    width: 100%;
+}
+
+#cs-custom-select::after {
+    content: "▼";
+    position: absolute;
+    right: 12px;
+    font-size: 10px;
+    color: var(--cs-primary);
+}
+
+#cs-select-options {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background-color: #0a0f14;
+    border: 1px solid var(--cs-primary-rgba-03);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 9999999;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.8);
+}
+
+.cs-hide {
+    display: none !important;
+}
+
+.cs-option {
+    padding: 10px 12px;
+    color: var(--cs-primary);
+    transition: background 0.2s;
+}
+
+.cs-option:hover {
+    background: var(--cs-primary-rgba-02);
+}
+
+#cs-new-key-mode-btn {
+    background: transparent;
+    border: 1px dashed var(--cs-primary-rgba-04);
+    color: var(--cs-primary);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#cs-new-key-mode-btn:hover {
+    background: var(--cs-primary-rgba-01);
+}
+
+.cs-key-box {
+    display: flex;
+    gap: 6px;
+}
+
+#cs-generate-key-btn {
+    background: transparent;
+    border: 1px solid var(--cs-primary-rgba-02);
+    color: var(--cs-primary);
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#cs-generate-key-btn:hover {
+    background: var(--cs-primary-rgba-01);
+}
+
+#cs-save-key-btn {
+    background: var(--cs-primary-rgba-01);
+    border: 1px solid var(--cs-primary-rgba-02);
+    color: var(--cs-primary);
+    border-radius: 8px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#cs-save-key-btn:hover {
+    background: var(--cs-primary-rgba-02);
+}
+
+#cs-show-key-btn {
+    background: transparent;
+    border: 1px solid var(--cs-primary-rgba-02);
+    color: var(--cs-primary);
+    border-radius: 8px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+#cs-show-key-btn:hover {
+    background: var(--cs-primary-rgba-01);
+}
+
+.cs-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    padding-right: 8px;
+}
+
+.cs-option-row .cs-option {
+    flex: 1;
+    padding: 10px 12px;
+    color: var(--cs-primary);
+    transition: background 0.2s;
+    cursor: pointer;
+}
+
+.cs-option-row .cs-option:hover {
+    background: var(--cs-primary-rgba-02);
+}
+
+.cs-option-del {
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.cs-option-del:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+#cs-message-input {
+    width: 100%;
+    min-height: 100px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: white;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+#cs-message-input:focus {
+    border-color: var(--cs-primary-rgba-05);
+}
+
+.cs-action-btn {
+    flex: 1;
+    border-radius: 8px;
+    padding: 10px;
+    font-weight: 800;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.cs-btn-green {
+    background: var(--cs-btn-bg);
+    color: var(--cs-btn-text);
+    border: none;
+    box-shadow: 0 0 10px var(--cs-primary-rgba-02);
+}
+
+.cs-btn-green:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 15px var(--cs-primary-rgba-04);
+}
+
+.cs-btn-outline {
+    background: transparent;
+    color: var(--cs-primary);
+    border: 1px solid var(--cs-primary-rgba-05);
+}
+
+.cs-btn-outline:hover {
+    background: var(--cs-primary-rgba-01);
+}
+
+.cs-action-btn:active {
+    transform: scale(0.98);
+}
+
+.cs-status {
+    text-align: center;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: #9ca3af;
+    font-family: monospace;
+    transition: color 0.3s;
+    margin-top: 4px;
+}
+
+.cs-status.flash {
+    color: var(--cs-primary);
+}

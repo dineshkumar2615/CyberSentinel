@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Shield, AlertTriangle, CheckCircle, Globe, Terminal, Activity, Zap, Lock, Unlock, History, Trash2, ExternalLink, Cpu, Hash } from 'lucide-react';
+import { Search, Shield, AlertTriangle, CheckCircle, Globe, Terminal, Activity, Zap, Lock, Unlock, History, Trash2, ExternalLink, Cpu, Hash, Maximize2, X } from 'lucide-react';
 
 interface ScanResult {
     _id?: string;
@@ -19,33 +19,47 @@ interface ScanResult {
     visualAnalysis?: {
         uuid: string;
         screenshot: string;
+        screenshotData?: string;
         message: string;
     };
 }
 
-const ScreenshotItem = ({ src, uuid }: { src: string, uuid: string }) => {
-    const [imgSrc, setImgSrc] = useState(src);
-    const [isPending, setIsPending] = useState(true);
+const ScreenshotItem = ({ src, uuid, scanId, existingData }: { src: string, uuid: string, scanId?: string, existingData?: string }) => {
+    // If we have data in DB, use it. Otherwise use our proxy to avoid CORS issues.
+    const proxyUrl = `/api/scrutinize/screenshot?uuid=${uuid}${scanId ? `&scanId=${scanId}` : ''}`;
+    const [imgSrc, setImgSrc] = useState(existingData || proxyUrl);
+    const [isPending, setIsPending] = useState(!existingData);
     const [retryCount, setRetryCount] = useState(0);
-    const [isRealImageReady, setIsRealImageReady] = useState(false);
+    const [isRealImageReady, setIsRealImageReady] = useState(!!existingData);
     const [hasError, setHasError] = useState(false);
+    const [isEnlarged, setIsEnlarged] = useState(false);
+    const imgRef = useRef<HTMLImageElement>(null);
 
     useEffect(() => {
-        if (!isPending) return;
+        setImgSrc(existingData || proxyUrl);
+        setIsPending(!existingData);
+        setIsRealImageReady(!!existingData);
+        setHasError(false);
+        setRetryCount(0);
+    }, [proxyUrl, existingData]);
+
+    useEffect(() => {
+        if (!isPending || existingData) return;
 
         const timer = setTimeout(() => {
-            setImgSrc(`${src}?t=${Date.now()}`);
+            // Re-trigger the proxy if it's still pending (the proxy handles the 404 from urlscan)
+            setImgSrc(`${proxyUrl}&t=${Date.now()}`);
             setRetryCount(prev => prev + 1);
         }, 5000);
 
-        if (retryCount > 10) {
+        if (retryCount > 12) {
             setIsPending(false);
         }
 
         return () => clearTimeout(timer);
-    }, [src, retryCount, isPending]);
+    }, [proxyUrl, retryCount, isPending, existingData]);
 
-    if (hasError || (retryCount > 8 && !isRealImageReady)) {
+    if (hasError || (retryCount > 10 && !isRealImageReady)) {
         return (
             <div className="w-full h-full flex flex-col items-center justify-center bg-[var(--glass-bg)] text-[var(--text-dim)] font-mono">
                 <Shield size={32} className="mb-2 opacity-20" />
@@ -56,29 +70,80 @@ const ScreenshotItem = ({ src, uuid }: { src: string, uuid: string }) => {
     }
 
     return (
-        <div className="relative group/shot w-full h-full overflow-hidden">
-            {!isRealImageReady && (
-                <div className="absolute inset-0 flex items-center justify-center bg-[var(--glass-bg)] animate-pulse">
-                    <Activity size={24} className="text-neon-blue opacity-50" />
-                </div>
-            )}
-            <img
-                src={imgSrc}
-                alt="Cyber Analysis Preview"
-                className={`w-full h-full object-cover object-top transition-all duration-700 ${isRealImageReady ? 'opacity-100 scale-100' : 'opacity-0 scale-110'}`}
-                onLoad={() => setIsRealImageReady(true)}
-                onError={() => {
-                    if (retryCount > 3) setHasError(true);
-                }}
-            />
+        <>
+            <div 
+                className="relative group/shot w-full h-full overflow-hidden cursor-zoom-in"
+                onClick={() => isRealImageReady && setIsEnlarged(true)}
+            >
+                {!isRealImageReady && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[var(--glass-bg)] animate-pulse">
+                        <Activity size={24} className="text-neon-blue opacity-50" />
+                    </div>
+                )}
+                <img
+                    ref={imgRef}
+                    src={imgSrc}
+                    alt="Cyber Analysis Preview"
+                    className={`w-full h-full object-cover object-top transition-all duration-700 ${isRealImageReady ? 'opacity-100 scale-100 group-hover/shot:scale-110' : 'opacity-0 scale-110'}`}
+                    onLoad={() => {
+                        setIsRealImageReady(true);
+                        setIsPending(false);
+                    }}
+                    onError={() => {
+                        // Only error out if we've tried for a while
+                        if (retryCount > 5) setHasError(true);
+                    }}
+                />
+                
+                {isRealImageReady && (
+                    <div className="absolute inset-0 bg-black/0 group-hover/shot:bg-black/10 transition-all flex items-center justify-center">
+                    </div>
+                )}
 
-            {isPending && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--background)]/40 backdrop-blur-sm">
-                    <Activity className="animate-spin text-neon-blue mb-2" size={24} />
-                    <span className="text-[8px] font-mono text-neon-blue animate-pulse uppercase tracking-[0.2em]">Capturing_Visual_Data...</span>
-                </div>
-            )}
-        </div>
+                {isPending && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[var(--background)]/40 backdrop-blur-sm">
+                        <Activity className="animate-spin text-neon-blue mb-2" size={24} />
+                        <span className="text-[8px] font-mono text-neon-blue animate-pulse uppercase tracking-[0.2em]">Capturing_Visual_Data...</span>
+                    </div>
+                )}
+            </div>
+
+            <AnimatePresence>
+                {isEnlarged && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-8"
+                        onClick={() => setIsEnlarged(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative max-w-7xl w-full h-auto flex flex-col"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button 
+                                onClick={() => setIsEnlarged(false)}
+                                className="absolute top-4 right-4 z-[110] p-2 bg-white/90 hover:bg-white text-black rounded-full transition-all shadow-xl group/close sm:fixed sm:top-8 sm:right-8 sm:p-3 sm:bg-white/10 sm:text-white sm:hover:bg-white/20 sm:backdrop-blur-md sm:border sm:border-white/20"
+                                title="Close Full View"
+                            >
+                                <X size={24} className="group-hover/close:rotate-90 transition-transform duration-300" />
+                            </button>
+                            <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden shadow-2xl relative h-auto max-h-[85vh] sm:max-h-full">
+                                <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-blue animate-shimmer" />
+                                <img
+                                    src={imgSrc}
+                                    alt="Full Forensic Preview"
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 };
 
@@ -258,7 +323,7 @@ export default function CyberLab() {
             </AnimatePresence>
 
             {/* Action Bar - Aligned Header */}
-            <div className="flex flex-row gap-2 md:gap-4 mb-6 md:mb-8">
+            <div className="flex flex-row gap-2 md:gap-4 mb-3 md:mb-4">
                 <div className="flex-1 relative group">
                     <div className="absolute -inset-0.5 bg-gradient-to-r from-neon-blue via-neon-purple to-neon-blue rounded-xl blur opacity-30 group-hover:opacity-100 transition duration-1000 animate-pulse"></div>
                     <div className="relative flex bg-[var(--background)] border border-[var(--glass-border)] rounded-xl overflow-hidden backdrop-blur-3xl shadow-[0_0_30px_rgba(0,210,255,0.05)]">
@@ -277,8 +342,14 @@ export default function CyberLab() {
                 </div>
 
                 <button
-                    onClick={() => setShowHistory(!showHistory)}
-                    className={`px-3 sm:px-4 py-3 sm:py-4 rounded-xl transition-all border flex items-center justify-center gap-2 flex-shrink-0 ${showHistory ? 'bg-neon-purple text-black border-neon-purple' : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] hover:border-neon-purple'}`}
+                    onClick={() => {
+                        if (status !== 'authenticated') {
+                            router.push('/login');
+                            return;
+                        }
+                        setShowHistory(!showHistory);
+                    }}
+                    className={`px-3 sm:px-4 py-3 sm:py-4 rounded-xl transition-all border flex items-center justify-center gap-2 flex-shrink-0 ${showHistory ? 'bg-neon-purple text-black border-neon-purple shadow-[0_0_20px_rgba(168,85,247,0.4)]' : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] hover:border-neon-purple'}`}
                 >
                     <History size={18} />
                     <span className="hidden sm:inline font-mono text-[10px] uppercase font-black">History</span>
@@ -305,9 +376,9 @@ export default function CyberLab() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: 20 }}
-                            className="lg:col-span-1 h-full order-1 lg:order-2"
+                            className="lg:col-span-1 h-full max-h-[450px] lg:max-h-[500px] order-1 lg:order-2"
                         >
-                             <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col min-h-[300px] lg:min-h-[500px]">
+                             <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col">
                                 <div className="p-4 border-b border-[var(--glass-border)] bg-[var(--glass-bg)] flex justify-between items-center">
                                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neon-purple flex items-center gap-2">
                                         <History size={14} /> Scan_Archive
@@ -339,9 +410,9 @@ export default function CyberLab() {
                                                     setUrl(item.url);
                                                     if (window.innerWidth < 1024) setShowHistory(false);
                                                 }}
-                                                className="bg-[var(--card-bg)] border border-[var(--glass-border)] p-3 rounded-xl cursor-pointer hover:border-neon-blue group/hitem transition-all"
+                                                className="bg-[var(--card-bg)] border border-[var(--glass-border)] p-2 rounded-xl cursor-pointer hover:border-neon-blue group/hitem transition-all"
                                             >
-                                                <div className="flex justify-between items-start mb-2">
+                                                <div className="flex justify-between items-start mb-1">
                                                     <div className={`w-1.5 h-1.5 rounded-full mt-1 ${item.status === 'danger' ? 'bg-neon-red shadow-[0_0_8px_#ff0055]' :
                                                         item.status === 'suspicious' ? 'bg-yellow-500 shadow-[0_0_8px_#eab308]' :
                                                             'bg-neon-green shadow-[0_0_8px_#00ff9d]'
@@ -353,7 +424,7 @@ export default function CyberLab() {
                                                         <Trash2 size={12} />
                                                     </button>
                                                 </div>
-                                                <div className="text-[10px] font-mono text-[var(--foreground)] truncate mb-1">
+                                                <div className="text-[10px] font-mono text-[var(--foreground)] truncate mb-0.5">
                                                     {item.url}
                                                 </div>
                                                 <div className="flex justify-between items-center">
@@ -376,8 +447,8 @@ export default function CyberLab() {
                     )}
                 </AnimatePresence>
 
-                <div className={`block ${showHistory ? 'lg:col-span-2' : 'col-span-1'} space-y-2 order-2 lg:order-1`}>
-                    <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl relative overflow-hidden min-h-[500px] flex flex-col">
+                <div className={`block ${showHistory ? 'lg:col-span-2' : 'col-span-1'} space-y-2 order-2 lg:order-1 h-full`}>
+                    <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl relative overflow-hidden h-full min-h-[400px] lg:min-h-[500px] flex flex-col">
                         <div className="absolute inset-0 pointer-events-none">
                             <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,157,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,157,0.02)_1px,transparent_1px)] bg-[size:40px_40px]" />
                             <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-neon-blue/5 to-transparent opacity-20" />
@@ -459,35 +530,22 @@ export default function CyberLab() {
                                                         <ScreenshotItem
                                                             src={result.visualAnalysis.screenshot}
                                                             uuid={result.visualAnalysis.uuid}
+                                                            scanId={result._id}
+                                                            existingData={result.visualAnalysis.screenshotData}
                                                         />
                                                         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[var(--background)]/90 to-transparent p-3 flex justify-between items-end">
                                                             <div className="flex flex-col">
                                                                 <span className="text-[8px] font-mono text-neon-blue font-bold uppercase tracking-wider bg-[var(--background)]/80 px-1.5 py-0.5 rounded inline-block w-fit shadow-sm">Visual_Forensic_Capture</span>
-                                                                <span className="text-[6px] font-mono text-[var(--text-dim)] mt-1">ID: {result.visualAnalysis.uuid.substring(0, 12)}...</span>
                                                             </div>
-                                                            <a
-                                                                href={`https://urlscan.io/result/${result.visualAnalysis.uuid}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="p-1.5 bg-neon-blue text-black rounded-lg hover:bg-white transition-colors"
-                                                            >
-                                                                <ExternalLink size={10} />
-                                                            </a>
                                                         </div>
                                                     </div>
                                                 )}
 
                                                 <div className="bg-[var(--card-bg)] border border-[var(--glass-border)] p-3 rounded-xl flex justify-between items-center px-6 text-center sm:text-left transition-colors">
-                                                    <div className="flex-1">
-                                                        <div className="text-[9px] text-neon-blue/80 font-bold uppercase mb-1">Security Cloud</div>
-                                                        <div className="text-xs font-bold text-[var(--foreground)] uppercase tracking-tight">{result.hosting}</div>
-                                                    </div>
-                                                    {result.visualAnalysis && (
-                                                        <div className="hidden sm:block pl-4 border-l border-[var(--glass-border)]">
-                                                            <div className="text-[8px] text-[var(--text-dim)] font-mono uppercase mb-0.5">Forensic_UUID</div>
-                                                            <div className="text-[10px] font-mono text-neon-purple/90">{result.visualAnalysis.uuid.substring(0, 8)}...</div>
-                                                        </div>
-                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                         <div className="text-[9px] text-neon-blue/80 font-bold uppercase mb-1">Security Cloud</div>
+                                                         <div className="text-xs font-bold text-[var(--foreground)] uppercase tracking-tight truncate" title={result.hosting}>{result.hosting}</div>
+                                                     </div>
                                                 </div>
                                             </div>
 
@@ -503,7 +561,8 @@ export default function CyberLab() {
                                                                     <CheckCircle className="text-neon-green" size={40} />}
                                                         </div>
                                                     </div>
-                                                    <div className="flex-1">                                                         <h3 className={`text-sm sm:text-lg font-black uppercase tracking-tighter mb-0.5 ${result.status === 'danger' ? 'text-neon-red' :
+                                                    <div className="flex-1">
+                                                        <h3 className={`text-sm sm:text-lg font-black uppercase tracking-tighter mb-0.5 ${result.status === 'danger' ? 'text-neon-red' :
                                                             result.status === 'suspicious' ? 'text-yellow-500' :
                                                                 'text-neon-green'
                                                             }`}>
@@ -514,7 +573,6 @@ export default function CyberLab() {
 
                                                         <div className="flex items-center gap-2 text-[var(--text-muted)] font-mono text-[9px] uppercase tracking-widest">
                                                             <span>Safety Score: {result.riskScore}/100</span>
-                                                            <span className="text-neon-purple/80 truncate max-w-[120px]">ID: {result.id.substring(0, 8)}...</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -525,9 +583,9 @@ export default function CyberLab() {
                                                     </div>
                                                     <div className="space-y-1">
                                                         {result.flags.map((flag, i) => (
-                                                            <div key={i} className="flex items-center gap-3 text-[10px] font-mono text-[var(--foreground)] opacity-80">
-                                                                <div className={`w-1 h-1 rounded-full ${result.status === 'danger' ? 'bg-neon-red' : 'bg-neon-blue'}`} />
-                                                                {flag}
+                                                            <div key={i} className="flex items-center gap-3 text-[10px] font-mono text-[var(--foreground)] opacity-80 min-w-0">
+                                                                <div className={`w-1 h-1 rounded-full flex-shrink-0 ${result.status === 'danger' ? 'bg-neon-red' : 'bg-neon-blue'}`} />
+                                                                <span className="truncate" title={flag}>{flag}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -535,8 +593,8 @@ export default function CyberLab() {
 
                                                 <div className="bg-[var(--card-bg)] border border-[var(--glass-border)] p-3 rounded-xl transition-all">
                                                     <div className="text-[9px] text-[var(--text-dim)] font-bold uppercase mb-0.5 font-mono">TLD_VECTOR</div>
-                                                    <div className="text-base font-black text-[var(--foreground)] flex justify-between items-center tracking-tight">
-                                                        <span>.{result.tld.toUpperCase()}</span>
+                                                    <div className="text-base font-black text-[var(--foreground)] flex justify-between items-center tracking-tight min-w-0 gap-4">
+                                                        <span className="truncate">.{result.tld.toUpperCase()}</span>
                                                         <div className={`text-[10px] font-mono flex items-center gap-2 ${result.ssl ? 'text-neon-green' : 'text-neon-red'}`}>
                                                             {result.ssl ? <Lock size={12} /> : <Unlock size={12} />}
                                                             {result.ssl ? 'ENCRYPTED' : 'EXPOSED'}

@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Eye, AlertTriangle, TrendingUp, PieChart as PieIcon } from 'lucide-react';
+import { ArrowRight, Eye, AlertTriangle, TrendingUp, PieChart as PieIcon, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Threat } from '@/lib/types';
 import Link from 'next/link';
 import ThreatAnalytics from './ThreatAnalytics';
+import ThreatDetailModal from './ThreatDetailModal';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface HeroProps {
     threats: Threat[];
@@ -25,8 +28,26 @@ const tooltipStyle = {
 type Tab = 'threat' | 'analytics';
 
 export default function HeroSection({ threats, activeTab, onTabChange }: HeroProps) {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedThreat, setSelectedThreat] = useState<Threat | null>(null);
+    const { status } = useSession();
+    const router = useRouter();
 
-    const mainThreat = threats[0] || {
+    // Get critical threats, or fallback to the first few threats if no critical ones exist
+    const criticalThreats = threats.filter(t => t.severity === 'critical');
+    const displayThreats = criticalThreats.length > 0 ? criticalThreats : threats.slice(0, 3);
+
+    // Auto-rotate the carousel
+    useEffect(() => {
+        if (displayThreats.length <= 1 || activeTab !== 'threat' || isModalOpen) return;
+        const timer = setInterval(() => {
+            setCurrentIndex((prev) => (prev + 1) % displayThreats.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, [displayThreats.length, activeTab, isModalOpen]);
+
+    const mainThreat = displayThreats[currentIndex] || {
         title: 'No Active Critical Threats',
         description: 'No major escalations detected in the last 7 days. Systems operating within normal parameters.',
         severity: 'low',
@@ -40,43 +61,78 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(239,68,68,0.06)_0%,transparent_55%)] pointer-events-none" />
 
-            <div className="max-w-[1700px] mx-auto px-6 md:px-12 lg:px-20 pt-6 pb-0 relative z-10">
+            <div className="max-w-[1700px] mx-auto px-6 md:px-12 lg:px-20 pt-4 pb-0 relative z-10">
                 {/* Tab toggle */}
-                <div className="flex items-center gap-1 mb-5 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-lg p-1 w-fit shadow-lg">
-                    {([
-                        { key: 'threat', label: 'Threat Overview', icon: AlertTriangle },
-                        { key: 'analytics', label: 'Analytics', icon: TrendingUp },
-                    ] as { key: Tab; label: string; icon: React.ElementType }[]).map(tab => (
-                        <button
-                            key={tab.key}
-                            onClick={() => onTabChange(tab.key)}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab.key
-                                ? 'bg-[var(--foreground)] text-[var(--background)] shadow-lg'
-                                : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5'
-                                }`}
-                        >
-                            <tab.icon size={13} />
-                            {tab.label}
-                        </button>
-                    ))}
+                <div className="flex items-center justify-between mb-5">
+                    <div className="flex items-center gap-1 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-lg p-1 w-fit shadow-lg">
+                        {([
+                            { key: 'threat', label: 'Threat Overview', icon: AlertTriangle },
+                            { key: 'analytics', label: 'Analytics', icon: TrendingUp },
+                        ] as { key: Tab; label: string; icon: React.ElementType }[]).map(tab => (
+                            <button
+                                key={tab.key}
+                                onClick={() => {
+                                    if (status !== 'authenticated') {
+                                        router.push('/login');
+                                        return;
+                                    }
+                                    onTabChange(tab.key);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-md text-[11px] font-black uppercase tracking-wider transition-all ${activeTab === tab.key
+                                    ? 'bg-[var(--foreground)] text-[var(--background)] shadow-lg'
+                                    : 'text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--foreground)]/5'
+                                    }`}
+                            >
+                                <tab.icon size={13} />
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Navigation Controls */}
+                    {activeTab === 'threat' && displayThreats.length > 1 && (
+                        <div className="hidden md:flex items-center gap-2">
+                            <button 
+                                onClick={() => setCurrentIndex((prev) => (prev - 1 + displayThreats.length) % displayThreats.length)}
+                                className="p-1.5 rounded-md bg-[var(--card-bg)] border border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-red-500/30 transition-colors"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <div className="flex items-center gap-1.5 px-2">
+                                {displayThreats.map((_, idx) => (
+                                    <button 
+                                        key={idx} 
+                                        onClick={() => setCurrentIndex(idx)}
+                                        className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'w-1.5 bg-[var(--glass-border)] hover:bg-[var(--text-muted)]'}`}
+                                    />
+                                ))}
+                            </div>
+                            <button 
+                                onClick={() => setCurrentIndex((prev) => (prev + 1) % displayThreats.length)}
+                                className="p-1.5 rounded-md bg-[var(--card-bg)] border border-[var(--glass-border)] text-[var(--text-muted)] hover:text-[var(--foreground)] hover:border-red-500/30 transition-colors"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                <div className="relative min-h-[180px] md:min-h-[220px]">
+                <div className="relative min-h-[240px] md:min-h-[280px] flex flex-col justify-center">
                     <AnimatePresence mode="wait">
                         {activeTab === 'threat' ? (
                             /* ── Threat Overview ── */
                             <motion.div
-                                key="threat"
-                                initial={{ opacity: 0, x: -10 }}
+                                key={`threat-${currentIndex}`}
+                                initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: 10 }}
-                                transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="pb-10"
+                                exit={{ opacity: 0, x: -20 }}
+                                transition={{ duration: 0.4, ease: "easeOut" }}
+                                className="pb-6"
                             >
-                                <div className="flex items-center gap-4 mb-4">
+                                <div className="flex items-center gap-4 mb-2">
                                     <span className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-red-500/10 border border-red-500/20 text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
                                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
-                                        Major_Alert
+                                        {mainThreat.severity === 'critical' ? 'CRITICAL_ALERT' : 'MAJOR_ALERT'}
                                     </span>
                                     <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-widest">{mainThreat.source}</span>
                                 </div>
@@ -91,19 +147,50 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
                                         )}
                                     </h1>
 
-                                    <div className="flex flex-col gap-4">
-                                        <p className="text-sm text-[var(--text-muted)] leading-relaxed line-clamp-3 md:line-clamp-none">
-                                            {mainThreat.description?.slice(0, 220)}{(mainThreat.description?.length ?? 0) > 220 ? '...' : ''}
+                                    <div className="flex flex-col gap-2">
+                                        <p className="text-sm text-[var(--text-muted)] leading-relaxed line-clamp-3 md:line-clamp-none md:min-h-[4.5rem]">
+                                            {mainThreat.description}
                                         </p>
-                                        <div className="flex flex-wrap items-center gap-3">
-                                            <Link
-                                                href={(mainThreat as Threat).referenceLink || '#'}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-2 px-6 h-10 bg-red-500 text-white font-black italic rounded-lg transition-all hover:bg-red-600 hover:shadow-lg text-xs uppercase tracking-widest active:scale-95"
-                                            >
-                                                <Eye size={14} /> Analyze Threat
-                                            </Link>
+                                        <div className="flex flex-wrap items-center gap-3 justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <button
+                                                    onClick={() => {
+                                                        if (status !== 'authenticated') {
+                                                            router.push('/login');
+                                                            return;
+                                                        }
+                                                        setSelectedThreat(mainThreat as Threat);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                    className="inline-flex items-center gap-2 px-6 h-10 bg-[var(--glass-bg)] border border-[var(--glass-border)] text-[var(--foreground)] font-black italic rounded-lg transition-all hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-500 hover:shadow-lg text-xs uppercase tracking-widest active:scale-95"
+                                                >
+                                                    <Eye size={14} className="text-emerald-500" /> Inspect
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (status !== 'authenticated') {
+                                                            router.push('/login');
+                                                            return;
+                                                        }
+                                                        window.open((mainThreat as Threat).referenceLink || '#', '_blank', 'noopener,noreferrer');
+                                                    }}
+                                                    className="inline-flex items-center gap-2 px-6 h-10 bg-red-500 text-white font-black italic rounded-lg transition-all hover:bg-red-600 hover:shadow-lg text-xs uppercase tracking-widest active:scale-95"
+                                                >
+                                                    <ArrowRight size={14} /> Analyze Threat
+                                                </button>
+                                            </div>
+                                            
+                                            {/* Mobile indicator dots */}
+                                            {displayThreats.length > 1 && (
+                                                <div className="flex md:hidden items-center gap-1.5">
+                                                    {displayThreats.map((_, idx) => (
+                                                        <div 
+                                                            key={idx} 
+                                                            className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentIndex ? 'w-6 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]' : 'w-1.5 bg-[var(--glass-border)]'}`}
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -116,7 +203,7 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -10 }}
                                 transition={{ duration: 0.3, ease: "easeOut" }}
-                                className="pb-8"
+                                className="pb-4"
                             >
                                 <div className="w-full overflow-x-hidden">
                                     <ThreatAnalytics threats={threats} />
@@ -126,6 +213,15 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
                     </AnimatePresence>
                 </div>
             </div>
+            
+            <ThreatDetailModal
+                threat={(selectedThreat || mainThreat) as Threat}
+                isOpen={isModalOpen}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setTimeout(() => setSelectedThreat(null), 300); // delay clearing to allow animation
+                }}
+            />
         </div>
     );
 }

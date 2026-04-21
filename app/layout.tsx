@@ -6,6 +6,7 @@ import NavigationBar from "@/components/NavigationBar";
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import AuthProvider from "@/components/AuthProvider";
 import MaintenanceGuard from "@/components/MaintenanceGuard";
+import SyncManager from "@/components/SyncManager";
 
 import { Inter, JetBrains_Mono } from "next/font/google";
 
@@ -53,6 +54,7 @@ export default function RootLayout({
 
         <ThemeProvider>
           <AuthProvider>
+            <SyncManager />
             <MaintenanceGuard>
               <MaintenanceBanner />
               <NavigationBar />

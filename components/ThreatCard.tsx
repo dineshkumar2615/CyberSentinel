@@ -5,6 +5,8 @@ import { Clock, Bookmark, Check, Eye, ThumbsUp, AlertTriangle, Bug, Lock, Globe,
 import { Threat } from '@/lib/types';
 import ThreatDetailModal from './ThreatDetailModal';
 import { humanizeHeadline } from '@/lib/utils/humanizer';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
 interface ThreatCardProps {
     threat: Threat;
@@ -16,6 +18,8 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [votes, setVotes] = useState(threat.usefulVotes || 0);
     const [hasVoted, setHasVoted] = useState(false);
+    const { status } = useSession();
+    const router = useRouter();
 
     useEffect(() => {
         const checkSavedStatus = async () => {
@@ -32,6 +36,10 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
 
     const handleSave = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (status !== 'authenticated') {
+            router.push('/login');
+            return;
+        }
         if (isSaving) return;
         setIsSaving(true);
         try {
@@ -50,6 +58,10 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
 
     const handleVote = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (status !== 'authenticated') {
+            router.push('/login');
+            return;
+        }
         if (hasVoted) return;
         setVotes(prev => prev + 1);
         setHasVoted(true);
@@ -141,7 +153,7 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
                         >
                             {getThreatIcon(threat.title)}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <h3 
                                 onClick={() => setIsModalOpen(true)}
                                 className="text-sm font-bold text-[var(--foreground)] leading-snug mb-1.5 hover:text-emerald-500 transition-colors line-clamp-2 cursor-pointer"
@@ -162,7 +174,13 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
                     <div className="pt-3 sm:pt-4 border-t border-[var(--glass-border)] flex flex-wrap items-center justify-between gap-2">
                         <div className="flex gap-2">
                             <button
-                                onClick={() => setIsModalOpen(true)}
+                                onClick={() => {
+                                    if (status !== 'authenticated') {
+                                        router.push('/login');
+                                        return;
+                                    }
+                                    setIsModalOpen(true);
+                                }}
                                 className="h-8 px-3.5 bg-[var(--glass-bg)] border border-[var(--glass-border)] rounded-lg text-[10px] font-black uppercase text-[var(--foreground)]/70 hover:border-emerald-500/30 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all flex items-center gap-1.5 shadow-sm group/btn"
                             >
                                 <Eye size={12} className="text-emerald-500/60 group-hover/btn:text-emerald-500 transition-colors" />

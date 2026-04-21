@@ -13,6 +13,7 @@ const ScanHistorySchema = new mongoose.Schema({
     visualAnalysis: {
         uuid: { type: String },
         screenshot: { type: String },
+        screenshotData: { type: String },
         message: { type: String }
     }
 });

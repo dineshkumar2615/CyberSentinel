@@ -18,6 +18,46 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'VirusTotal API key is missing' }, { status: 500 });
         }
 
+        // 0. Blacklist for known IP Loggers and Phishing tools
+        const blacklist = [
+            'grabify.link', 'iplogger.org', 'blasze.com', 'linkexpander.com', 
+            'psh.re', '2no.co', 'yip.su', 'iplis.ru', 'trck.at', 'yolinks.com',
+            'shorte.st', 'r.mtdv.me', 'leak.sx'
+        ];
+        
+        const lowerUrl = url.toLowerCase();
+        const isBlacklisted = blacklist.some(domain => lowerUrl.includes(domain));
+        
+        if (isBlacklisted) {
+            const blacklistResult = {
+                id: 'BLACKLIST-INTERNAL-SCAN',
+                url,
+                riskScore: 0,
+                status: 'danger' as const,
+                flags: ['Known IP Logger / Phishing Redirector Detected', 'Critical privacy risk: URL associated with tracking/exploitation tools'],
+                tld: url.split('.').pop()?.split('/')[0] || 'unknown',
+                hosting: 'BLACKLIST_DATABASE_MATCH',
+                ssl: url.startsWith('https'),
+                timestamp: new Date().toISOString(),
+                rawStats: { malicious: 1 }
+            };
+
+            let savedBlacklist = null;
+            try {
+                const session = await auth();
+                if (session?.user?.id) {
+                    await dbConnect();
+                    savedBlacklist = await ScanHistory.create({
+                        userId: session.user.id,
+                        ...blacklistResult,
+                        timestamp: new Date()
+                    });
+                }
+            } catch (e) { console.error('History Save Error (Blacklist):', e); }
+
+            return NextResponse.json(savedBlacklist ? { ...blacklistResult, _id: savedBlacklist._id } : blacklistResult);
+        }
+
         // 0. Hardcoded check for EICAR test file (Industry Standard)
         if (url.toLowerCase().includes('eicar.com') || url.toLowerCase().includes('eicar.org')) {
             const eicarResult = {
@@ -175,7 +215,7 @@ export async function POST(request: Request) {
             riskScore: safetyScore,
             status: (safetyScore < 40 ? 'danger' : safetyScore < 80 ? 'suspicious' : 'safe') as 'danger' | 'suspicious' | 'safe',
             flags: flags.length > 0 ? flags : ['No immediate threats detected'],
-            tld: url.split('.').pop()?.split('/')[0] || 'unknown',
+            tld: url.split('.').pop()?.split(/[/?#]/)[0] || 'unknown',
             hosting: 'Analyzed via VirusTotal Cloud',
             ssl: url.startsWith('https'),
             timestamp: new Date().toISOString(),

@@ -20,6 +20,7 @@ export interface ChatMessage {
     timestamp: number;
     senderId?: string;
     isDecrypted?: boolean;
+    clientMessageId?: string;
 }
 
 /**

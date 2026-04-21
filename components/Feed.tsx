@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { Threat } from '@/lib/types';
 import ThreatCard from './ThreatCard';
 import ScannerOverlay from './ScannerOverlay';
@@ -20,6 +22,8 @@ export default function Feed() {
     const [dateFilter, setDateFilter] = useState<DateFilter>('7d');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'threat' | 'analytics'>('threat');
+    const { status } = useSession();
+    const router = useRouter();
 
     const fetchThreats = async () => {
         try {
@@ -153,11 +157,11 @@ export default function Feed() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 20 }}
                         transition={{ duration: 0.4 }}
-                        className="max-w-[1700px] mx-auto px-6 md:px-12 lg:px-20 py-8"
+                        className="max-w-[1700px] mx-auto px-6 md:px-12 lg:px-20 py-4"
                     >
 
                 {/* Filters + Feed */}
-                <div className="mt-10">
+                <div className="mt-4">
                     {/* Filter bar */}
                     <div className="flex flex-col md:flex-row gap-4 items-start md:items-center mb-6">
                         {/* Category filters */}
@@ -167,7 +171,13 @@ export default function Feed() {
                                 {categoryOptions.map(opt => (
                                     <button
                                         key={opt.key}
-                                        onClick={() => setCategoryFilter(opt.key)}
+                                        onClick={() => {
+                                            if (status !== 'authenticated') {
+                                                router.push('/login');
+                                                return;
+                                            }
+                                            setCategoryFilter(opt.key);
+                                        }}
                                         className={`px-3 py-1.5 rounded-lg text-[10px] sm:text-[11px] font-bold uppercase tracking-wide transition-all border ${categoryFilter === opt.key
                                             ? 'bg-emerald-600 text-white border-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
                                             : 'bg-[var(--card-bg)] text-[var(--text-muted)] border-[var(--glass-border)] hover:border-emerald-500/50 hover:text-emerald-500 hover:bg-emerald-500/5'
@@ -188,7 +198,13 @@ export default function Feed() {
                                 {dateOptions.map(opt => (
                                     <button
                                         key={opt.key}
-                                        onClick={() => setDateFilter(opt.key)}
+                                        onClick={() => {
+                                            if (status !== 'authenticated') {
+                                                router.push('/login');
+                                                return;
+                                            }
+                                            setDateFilter(opt.key);
+                                        }}
                                         className={`flex-1 sm:flex-none px-3 py-1 rounded-md text-[11px] font-bold uppercase tracking-wide transition-all ${dateFilter === opt.key
                                             ? 'bg-[var(--foreground)] text-[var(--background)] shadow-sm'
                                             : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'
@@ -206,6 +222,11 @@ export default function Feed() {
                                     type="text"
                                     placeholder="Search threats..."
                                     value={searchQuery}
+                                    onFocus={() => {
+                                        if (status !== 'authenticated') {
+                                            router.push('/login');
+                                        }
+                                    }}
                                     onChange={e => setSearchQuery(e.target.value)}
                                     className="pl-8 pr-4 py-2 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-lg text-sm text-[var(--foreground)] placeholder-[var(--text-dim)] focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/50 w-full transition-all shadow-sm"
                                 />
@@ -217,7 +238,7 @@ export default function Feed() {
                     <div className="flex justify-between items-center mb-5">
                         <div>
                             <h2 className="text-2xl font-black italic tracking-tight uppercase text-[var(--foreground)]">
-                                Latest <span className="text-emerald-500">Threat</span> Feed
+                                Latest <span className="text-emerald-500">Threat</span> NEWS
                             </h2>
                         </div>
                         <div className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--card-bg)] px-3 py-1.5 border border-[var(--glass-border)] rounded-lg tracking-widest shadow-sm">

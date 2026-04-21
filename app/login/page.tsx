@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Lock, Mail, ArrowRight, Shield, Fingerprint } from "lucide-react";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
@@ -12,6 +12,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [showAnimation, setShowAnimation] = useState(false);
+    const [userName, setUserName] = useState("");
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -31,13 +33,18 @@ export default function LoginPage() {
             } else {
                 // Fetch session to check role for redirection
                 const session = await getSession();
+                const name = session?.user?.name || "User";
+                setUserName(name);
+                setShowAnimation(true);
 
-                if ((session?.user as any)?.role === 'admin') {
-                    router.push("/admin/dashboard");
-                } else {
-                    router.push("/dashboard");
-                }
-                router.refresh();
+                setTimeout(() => {
+                    if ((session?.user as any)?.role === 'admin') {
+                        router.push("/admin/dashboard");
+                    } else {
+                        router.push("/");
+                    }
+                    router.refresh();
+                }, 2500);
             }
         } catch (err) {
             setError("An error occurred. Please try again.");
@@ -172,6 +179,88 @@ export default function LoginPage() {
                 </div>
 
             </motion.div>
+
+            {/* Welcome Animation Overlay */}
+            <AnimatePresence>
+                {showAnimation && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[var(--background)]"
+                    >
+                        {/* High-tech background effect */}
+                        <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-neon-blue/20 rounded-full blur-[120px] animate-pulse" />
+                            <div className="absolute inset-0 overflow-hidden">
+                                {[...Array(20)].map((_, i) => (
+                                    <motion.div
+                                        key={i}
+                                        initial={{ opacity: 0, x: Math.random() * 100 - 50 + "%", y: "100%" }}
+                                        animate={{ opacity: [0, 0.5, 0], y: "-10%" }}
+                                        transition={{ duration: 2 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 2 }}
+                                        className="absolute w-[1px] h-20 bg-gradient-to-b from-neon-blue to-transparent"
+                                        style={{ left: Math.random() * 100 + "%" }}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="text-center z-10"
+                        >
+                            <motion.div
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2 }}
+                                className="flex items-center justify-center mb-6"
+                            >
+                                <div className="w-20 h-20 bg-neon-blue/10 rounded-2xl flex items-center justify-center border border-neon-blue/30 shadow-[0_0_30px_rgba(var(--neon-blue),0.3)]">
+                                    <Shield className="w-10 h-10 text-neon-blue" />
+                                </div>
+                            </motion.div>
+
+                            <motion.h2
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.4 }}
+                                className="text-4xl md:text-5xl font-black italic tracking-tighter uppercase mb-2"
+                            >
+                                Cyber<span className="text-neon-blue">Sentinel</span>
+                            </motion.h2>
+
+                            <motion.div
+                                initial={{ scaleX: 0 }}
+                                animate={{ scaleX: 1 }}
+                                transition={{ delay: 0.6, duration: 0.8 }}
+                                className="h-[2px] w-48 bg-gradient-to-r from-transparent via-neon-blue to-transparent mx-auto mb-6"
+                            />
+
+                            <motion.p
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.8 }}
+                                className="text-xl font-mono text-[var(--text-muted)]"
+                            >
+                                Welcome back, <span className="text-[var(--foreground)] font-bold">{userName}</span>
+                            </motion.p>
+                            
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: 1.2 }}
+                                className="mt-8 flex items-center justify-center gap-2 text-xs font-mono text-neon-blue/60 uppercase tracking-[0.3em]"
+                            >
+                                <span className="w-2 h-2 rounded-full bg-neon-blue animate-ping" />
+                                Authenticating Access...
+                            </motion.div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

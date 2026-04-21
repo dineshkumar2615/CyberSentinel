@@ -127,36 +127,19 @@ export default function Navigation() {
                             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_3px,rgba(var(--foreground-rgb),0.5)_3px)] opacity-[0.02] pointer-events-none" />
                             <div className="absolute top-0 inset-x-0 h-32 bg-gradient-to-b from-neon-blue/5 to-transparent pointer-events-none" />
 
-                            <div className="relative p-6 mb-6">
-                                <div className="flex items-start justify-between relative z-10 w-full mb-4">
-                                    <ThemeToggle />
-                                    <button
-                                        onClick={() => setIsSidebarOpen(false)}
-                                        className="p-2 rounded-lg hover:bg-[var(--glass-bg)] transition-colors"
-                                    >
-                                        <X size={20} className="text-[var(--foreground)]/50 hover:text-[var(--foreground)]" />
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                    <div className="relative w-10 h-10 flex items-center justify-center">
-                                        <div className="absolute inset-0 bg-neon-green/20 rotate-45 rounded-sm animate-pulse" />
-                                        <div className="absolute inset-0 border border-neon-green rotate-45 rounded-sm" />
-                                        <Zap size={20} className="text-neon-green relative z-10 fill-current" />
-                                    </div>
-                                    <div>
-                                        <h1 className="text-xl font-black text-[var(--foreground)] italic tracking-tighter leading-none">
-                                            CYBER<span className="text-neon-green">SENTINEL</span>
-                                        </h1>
-                                        <div className="text-[9px] text-neon-green/60 font-mono tracking-widest mt-1">
-                                            ACTIVE_SECURE
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="relative p-4 md:hidden flex justify-end">
+                                <button
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1.5 rounded-lg hover:bg-[var(--glass-bg)] transition-colors"
+                                >
+                                    <X size={20} className="text-[var(--foreground)]/50 hover:text-[var(--foreground)]" />
+                                </button>
                             </div>
 
-                            <div className="px-4 space-y-2 flex-1 relative z-10">
+                            <div className="px-4 space-y-2 flex-1 relative z-10 flex flex-col justify-center">
                                 <div className="text-[10px] text-gray-600 font-bold uppercase tracking-widest px-4 mb-2">Main Modules</div>
-                                {navItems.map((item) => {
+                                <div className="space-y-2">
+                                    {navItems.map((item) => {
                                     const isActive = pathname === item.href;
                                     return (
                                         <Link
@@ -184,50 +167,63 @@ export default function Navigation() {
                                         </Link>
                                     );
                                 })}
+                                </div>
                             </div>
 
                             <div className="mt-auto relative z-10 px-4 pb-6 space-y-2">
                                 {session ? (
                                     <>
-                                        <div className="flex items-center gap-3 p-3 mb-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-xs ring-1 ring-blue-500/30">
-                                                {session.user?.name?.charAt(0)}
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-[10px] font-bold text-[var(--foreground)] truncate uppercase tracking-tighter italic">{session.user?.name}</p>
-                                                <p className="text-[9px] text-[var(--text-muted)] font-mono italic">Security Status: Active</p>
+                                        <div className="flex items-center gap-2 mb-4">
+                                            {(session.user as any)?.role === 'admin' ? (
+                                                <Link
+                                                    href="/admin/dashboard"
+                                                    onClick={() => setIsSidebarOpen(false)}
+                                                    className="flex-1 flex items-center gap-3 px-4 py-3 rounded-lg bg-neon-red/10 text-neon-red border border-neon-red/20 hover:bg-neon-red/20 transition-all group"
+                                                >
+                                                    <Shield size={20} className="group-hover:scale-110 transition-transform" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Command Center</span>
+                                                </Link>
+                                            ) : (
+                                                <Link
+                                                    href="/dashboard"
+                                                    onClick={() => setIsSidebarOpen(false)}
+                                                    className="flex-1 flex items-center gap-3 px-4 py-3 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all group"
+                                                >
+                                                    <LayoutDashboard size={20} className="group-hover:scale-110 transition-transform" />
+                                                    <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
+                                                </Link>
+                                            )}
+                                            <div className="flex-shrink-0">
+                                                <ThemeToggle className="p-3 w-12 h-12 flex items-center justify-center shadow-md bg-[var(--glass-bg)]" />
                                             </div>
                                         </div>
-                                        {(session.user as any)?.role === 'admin' && (
-                                            <Link
-                                                href="/admin/dashboard"
-                                                onClick={() => setIsSidebarOpen(false)}
-                                                className="flex items-center gap-4 px-4 py-3 rounded-lg bg-neon-red/10 text-neon-red border border-neon-red/20 hover:bg-neon-red/20 transition-all group"
+
+                                        <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--glass-bg)] border border-[var(--glass-border)] shadow-sm">
+                                            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex flex-shrink-0 items-center justify-center font-bold text-sm text-white shadow-md ring-2 ring-[var(--background)]">
+                                                {session.user?.name?.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <p className="text-sm font-semibold text-[var(--foreground)] truncate">
+                                                    {session.user?.name}
+                                                </p>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-neon-green animate-pulse" />
+                                                    <p className="text-[10px] text-[var(--text-muted)] font-medium">
+                                                        Status: Active
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => {
+                                                    signOut({ callbackUrl: "/" });
+                                                    setIsSidebarOpen(false);
+                                                }}
+                                                className="p-2 text-red-400/80 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors group"
+                                                title="Log Out"
                                             >
-                                                <Shield size={20} className="group-hover:scale-110 transition-transform" />
-                                                <span className="text-xs font-bold uppercase tracking-wider">Command Center</span>
-                                            </Link>
-                                        )}
-                                        {(session.user as any)?.role !== 'admin' && (
-                                            <Link
-                                                href="/dashboard"
-                                                onClick={() => setIsSidebarOpen(false)}
-                                                className="flex items-center gap-4 px-4 py-3 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all group"
-                                            >
-                                                <LayoutDashboard size={20} className="group-hover:scale-110 transition-transform" />
-                                                <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
-                                            </Link>
-                                        )}
-                                        <button
-                                            onClick={() => {
-                                                signOut({ callbackUrl: "/" });
-                                                setIsSidebarOpen(false);
-                                            }}
-                                            className="w-full flex items-center gap-4 px-4 py-3 rounded-lg text-red-400/60 hover:text-red-400 hover:bg-red-400/5 border border-transparent hover:border-red-400/20 transition-all group"
-                                        >
-                                            <LogOut size={20} className="group-hover:scale-110 transition-transform" />
-                                            <span className="text-xs font-bold uppercase tracking-wider">Log Out</span>
-                                        </button>
+                                                <LogOut size={18} className="group-hover:scale-110 transition-transform" />
+                                            </button>
+                                        </div>
                                     </>
                                 ) : (
                                     <>
