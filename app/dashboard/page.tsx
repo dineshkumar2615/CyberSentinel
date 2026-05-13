@@ -38,11 +38,12 @@ interface Favorite {
     alias: string;
     channelId?: string;
     addedAt: string;
+    platform?: string;
 }
 
 interface Notification {
     _id: string;
-    type: 'messenger';
+    type: 'messenger' | 'handshake';
     title: string;
     message: string;
     channelId?: string;
@@ -219,7 +220,7 @@ export default function DashboardPage() {
     // Environment Scanner State
     const [isEnvScanning, setIsEnvScanning] = useState(false);
     const [envScanProgress, setEnvScanProgress] = useState(0);
-    const [envScanResult, setEnvScanResult] = useState<null | 'clean' | 'threats'>(null);
+    const [envScanResult, setEnvScanResult] = useState<null | 'clean' | 'threats' | 'warning'>(null);
     const [envMeasures, setEnvMeasures] = useState<any>(null);
 
     const isMobileDevice = false; // Mobile native platform check removed
