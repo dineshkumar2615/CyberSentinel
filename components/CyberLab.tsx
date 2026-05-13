@@ -71,7 +71,7 @@ const ScreenshotItem = ({ src, uuid, scanId, existingData }: { src: string, uuid
 
     return (
         <>
-            <div 
+            <div
                 className="relative group/shot w-full h-full overflow-hidden cursor-zoom-in"
                 onClick={() => isRealImageReady && setIsEnlarged(true)}
             >
@@ -94,7 +94,7 @@ const ScreenshotItem = ({ src, uuid, scanId, existingData }: { src: string, uuid
                         if (retryCount > 5) setHasError(true);
                     }}
                 />
-                
+
                 {isRealImageReady && (
                     <div className="absolute inset-0 bg-black/0 group-hover/shot:bg-black/10 transition-all flex items-center justify-center">
                     </div>
@@ -124,7 +124,7 @@ const ScreenshotItem = ({ src, uuid, scanId, existingData }: { src: string, uuid
                             className="relative max-w-7xl w-full h-auto flex flex-col"
                             onClick={(e) => e.stopPropagation()}
                         >
-                            <button 
+                            <button
                                 onClick={() => setIsEnlarged(false)}
                                 className="absolute top-4 right-4 z-[110] p-2 bg-white/90 hover:bg-white text-black rounded-full transition-all shadow-xl group/close sm:fixed sm:top-8 sm:right-8 sm:p-3 sm:bg-white/10 sm:text-white sm:hover:bg-white/20 sm:backdrop-blur-md sm:border sm:border-white/20"
                                 title="Close Full View"
@@ -378,7 +378,7 @@ export default function CyberLab() {
                             exit={{ opacity: 0, x: 20 }}
                             className="lg:col-span-1 h-full max-h-[450px] lg:max-h-[500px] order-1 lg:order-2"
                         >
-                             <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col">
+                            <div className="bg-[var(--background)] border border-[var(--glass-border)] rounded-2xl overflow-hidden h-full flex flex-col">
                                 <div className="p-4 border-b border-[var(--glass-border)] bg-[var(--glass-bg)] flex justify-between items-center">
                                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-neon-purple flex items-center gap-2">
                                         <History size={14} /> Scan_Archive
@@ -479,7 +479,7 @@ export default function CyberLab() {
                                             <motion.div
                                                 animate={{ rotate: 360 }}
                                                 transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                                                 className="w-32 h-32 sm:w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
+                                                className="w-32 h-32 sm:w-56 h-56 border-2 border-neon-blue/20 rounded-full border-t-neon-blue"
                                             />
                                             <motion.div
                                                 animate={{ rotate: -360 }}
@@ -487,13 +487,13 @@ export default function CyberLab() {
                                                 className="absolute inset-3 sm:inset-4 border border-neon-purple/20 rounded-full border-b-neon-purple"
                                             />
                                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                 <div className="text-2xl sm:text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
+                                                <div className="text-2xl sm:text-5xl font-black text-[var(--foreground)] font-mono tracking-tighter">
                                                     {Math.round(scanProgress)}%
                                                 </div>
                                                 <div className="text-[7px] sm:text-[8px] text-neon-blue font-mono tracking-[0.3em] mt-1 sm:mt-2 animate-pulse">PATH_TRACE</div>
                                             </div>
 
-                                             <motion.div
+                                            <motion.div
                                                 className="absolute left-[-10%] right-[-10%] sm:left-[-20%] sm:right-[-20%] h-[1px] sm:h-[2px] bg-neon-blue/50 shadow-[0_0_15px_#00d2ff] z-20"
                                                 animate={{ top: ['0%', '100%', '0%'] }}
                                                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -543,9 +543,9 @@ export default function CyberLab() {
 
                                                 <div className="bg-[var(--card-bg)] border border-[var(--glass-border)] p-3 rounded-xl flex justify-between items-center px-6 text-center sm:text-left transition-colors">
                                                     <div className="flex-1 min-w-0">
-                                                         <div className="text-[9px] text-neon-blue/80 font-bold uppercase mb-1">Security Cloud</div>
-                                                         <div className="text-xs font-bold text-[var(--foreground)] uppercase tracking-tight truncate" title={result.hosting}>{result.hosting}</div>
-                                                     </div>
+                                                        <div className="text-[9px] text-neon-blue/80 font-bold uppercase mb-1">Security Cloud</div>
+                                                        <div className="text-xs font-bold text-[var(--foreground)] uppercase tracking-tight truncate" title={result.hosting}>{result.hosting}</div>
+                                                    </div>
                                                 </div>
                                             </div>
 

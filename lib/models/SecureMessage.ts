@@ -21,6 +21,11 @@ const SecureMessageSchema = new mongoose.Schema({
     timestamp: {
         type: Number,
         default: () => Date.now(),
+    },
+    tag: {
+        type: String,
+        default: 'app',
+        index: true,
     }
 });
 

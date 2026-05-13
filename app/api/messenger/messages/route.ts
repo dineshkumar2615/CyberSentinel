@@ -1,10 +1,21 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import SecureMessage from '@/lib/models/SecureMessage';
+import dbConnect from '../../../../lib/db';
+import SecureMessage from '../../../../lib/models/SecureMessage';
+import User from '../../../../lib/models/User';
+import { auth } from '../../../../auth';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
     try {
-        const { channelId, senderId, senderEmail, encryptedPayload, clientMessageId } = await request.json();
+        const session = await auth();
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const normalizedSenderEmail = session.user.email.toLowerCase().trim();
+
+        const { channelId, senderId, senderEmail, encryptedPayload, clientMessageId, tag } = await request.json();
+        const normalizedRequestSenderEmail = (senderEmail || session.user.email).toLowerCase().trim();
         
         if (!channelId || !senderId || !encryptedPayload) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -17,22 +28,18 @@ export async function POST(request: Request) {
             senderId,
             encryptedPayload,
             clientMessageId,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            tag: tag || 'app'
         });
 
-        // Offline Notifications: Notify users who have favorited this channel
+        // Offline Notifications
         try {
-            const User = (await import('@/lib/models/User')).default;
-            
-            // Find users who have this channelId in their favorites
-            // Exclude the specific user who sent it via their email
             const targetUsers = await User.find({
                 'favorites.channelId': channelId,
-                email: { $ne: senderEmail }
+                email: { $ne: normalizedRequestSenderEmail }
             });
 
             if (targetUsers.length > 0) {
-                // Personalize notifications for each user based on their specific alias
                 for (const targetUser of targetUsers) {
                     const favorite = targetUser.favorites.find((f: any) => f.channelId === channelId);
                     const chatName = favorite?.alias || `Channel ${channelId.substring(0, 8)}...`;
@@ -54,7 +61,6 @@ export async function POST(request: Request) {
             }
         } catch (notifyError) {
             console.error('Failed to trigger notifications:', notifyError);
-            // Don't fail the message send if notification fails
         }
 
         return NextResponse.json({ success: true, message });
@@ -74,12 +80,30 @@ export async function GET(request: Request) {
     }
 
     try {
+        const session = await auth();
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         await dbConnect();
 
-        const messages = await SecureMessage.find({
+        const user = await User.findOne({ email: session.user.email });
+
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        const tag = searchParams.get('tag');
+        const query: any = {
             channelId,
             timestamp: { $gt: since }
-        }).sort({ timestamp: 1 }).limit(100);
+        };
+
+        if (tag) {
+            query.tag = tag;
+        }
+
+        const messages = await SecureMessage.find(query).sort({ timestamp: 1 }).limit(100);
 
         return NextResponse.json({ success: true, messages });
     } catch (error) {

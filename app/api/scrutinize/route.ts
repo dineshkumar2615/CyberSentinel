@@ -90,6 +90,46 @@ export async function POST(request: Request) {
             return NextResponse.json(savedEicar ? { ...eicarResult, _id: savedEicar._id } : eicarResult);
         }
 
+        // 0.5 DNS Existence Check
+        let dnsResolved = true;
+        try {
+            const domain = new URL(url.startsWith('http') ? url : `https://${url}`).hostname;
+            const dns = require('dns').promises;
+            await dns.resolve(domain);
+        } catch (e) {
+            dnsResolved = false;
+        }
+
+        if (!dnsResolved) {
+            const dnsFailResult = {
+                id: 'DNS-UNRESOLVED-SCAN',
+                url,
+                riskScore: 50, // Neutral but cautious
+                status: 'suspicious' as const,
+                flags: ['UNREGISTERED / UNKNOWN DOMAIN', 'No active DNS records found for this host'],
+                tld: url.split('.').pop()?.split(/[/?#]/)[0] || 'unknown',
+                hosting: 'DOMAIN_RESOLUTION_FAILED',
+                ssl: url.startsWith('https'),
+                timestamp: new Date().toISOString(),
+                rawStats: { dns_failure: 1 }
+            };
+
+            let savedDns = null;
+            try {
+                const session = await auth();
+                if (session?.user?.id) {
+                    await dbConnect();
+                    savedDns = await ScanHistory.create({
+                        userId: session.user.id,
+                        ...dnsFailResult,
+                        timestamp: new Date()
+                    });
+                }
+            } catch (e) { console.error('History Save Error (DNS):', e); }
+
+            return NextResponse.json(savedDns ? { ...dnsFailResult, _id: savedDns._id } : dnsFailResult);
+        }
+
         // 1. Check for PRE-EXISTING report first
         const urlId = Buffer.from(url).toString('base64').replace(/=/g, '');
         let vtData = null;

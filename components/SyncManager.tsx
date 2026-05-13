@@ -11,7 +11,7 @@ export default function SyncManager() {
     useEffect(() => {
         const triggerSync = async () => {
             const now = Date.now();
-            
+
             // Check if we already synced recently in this session 
             // (or if another tab/instance did, though this is per-client-instance)
             const lastSync = localStorage.getItem('last_threat_sync');
@@ -21,7 +21,7 @@ export default function SyncManager() {
             }
 
             console.log('[SyncManager] Website reloaded. Initiating background sync...');
-            
+
             try {
                 const response = await fetch('/api/threats/sync', { method: 'POST' });
                 if (response.ok) {

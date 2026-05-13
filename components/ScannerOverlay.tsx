@@ -75,9 +75,6 @@ export default function ScannerOverlay({ isScanning, onScanComplete }: ScannerOv
                     <div className="mt-8 text-neon-green text-sm animate-pulse">
                         SCANNING GLOBAL NETWORKS...
                     </div>
-                    <div className="text-[var(--foreground)]/60 text-xs mt-2">
-                        Searching for signatures in sector 7G...
-                    </div>
                 </motion.div>
             )}
         </AnimatePresence>

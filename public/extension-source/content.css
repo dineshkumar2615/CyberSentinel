@@ -49,6 +49,11 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    resize: both;
+    min-width: 300px;
+    min-height: 250px;
+    max-width: 90vw;
+    max-height: 90vh;
 }
 
 #cs-widget-root * {

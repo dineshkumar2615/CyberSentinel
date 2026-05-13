@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import ThreatModel from '@/lib/models/Threat';
+import dbConnect from '../../../lib/db';
+import ThreatModel from '../../../lib/models/Threat';
 
 export async function GET(request: Request) {
     try {
@@ -10,21 +10,28 @@ export async function GET(request: Request) {
         const days = searchParams.get('days');
 
         let query = {};
-        if (days) {
+        if (days && days !== 'all') {
+            // Extract numbers only to handle "7d", "30d" etc
+            const numDays = parseInt(days.replace(/\D/g, '')) || 30;
             const dateLimit = new Date();
-            dateLimit.setDate(dateLimit.getDate() - parseInt(days));
+            dateLimit.setDate(dateLimit.getDate() - numDays);
             query = { timestamp: { $gte: dateLimit.toISOString() } };
+        } else if (days === 'all') {
+            query = {};
         } else {
-            // Default: 7 days as requested for the main platform view
             const dateLimit = new Date();
-            dateLimit.setDate(dateLimit.getDate() - 7);
+            dateLimit.setDate(dateLimit.getDate() - 30);
             query = { timestamp: { $gte: dateLimit.toISOString() } };
         }
 
         const threats = await ThreatModel.find(query).sort({ timestamp: -1 });
         return NextResponse.json(threats);
-    } catch (error) {
-        console.error('Error fetching threats:', error);
+    } catch (error: any) {
+        console.error('CRITICAL_API_ERROR [GET /api/threats]:', {
+            message: error.message,
+            stack: error.stack,
+            query: request.url
+        });
         // Return empty array as fallback instead of error to prevent UI crashes
         return NextResponse.json([]);
     }

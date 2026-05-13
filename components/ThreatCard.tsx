@@ -10,16 +10,25 @@ import { useRouter } from 'next/navigation';
 
 interface ThreatCardProps {
     threat: Threat;
+    autoOpen?: boolean;
 }
 
-export default function ThreatCard({ threat }: ThreatCardProps) {
+export default function ThreatCard({ threat, autoOpen }: ThreatCardProps) {
     const [isSaved, setIsSaved] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(autoOpen || false);
     const [votes, setVotes] = useState(threat.usefulVotes || 0);
     const [hasVoted, setHasVoted] = useState(false);
     const { status } = useSession();
     const router = useRouter();
+    const cardRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (autoOpen && cardRef.current) {
+            cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setIsModalOpen(true);
+        }
+    }, [autoOpen]);
 
     useEffect(() => {
         const checkSavedStatus = async () => {
@@ -113,8 +122,9 @@ export default function ThreatCard({ threat }: ThreatCardProps) {
     return (
         <>
             <motion.div
+                ref={cardRef}
                 whileHover={{ y: -6 }}
-                className={`group relative flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl overflow-hidden transition-all duration-500 ${config.glow} backdrop-blur-sm`}
+                className={`group relative flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-2xl overflow-hidden transition-all duration-500 ${config.glow} backdrop-blur-sm ${autoOpen ? 'ring-2 ring-emerald-500 ring-offset-4 ring-offset-[var(--background)] shadow-[0_0_20px_rgba(16,185,129,0.3)]' : ''}`}
             >
                 {/* Cyberpunk Grid Background */}
                 <div className="absolute inset-0 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity mix-blend-overlay">

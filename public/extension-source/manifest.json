@@ -8,6 +8,9 @@
     "clipboardWrite",
     "clipboardRead"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["*://web.whatsapp.com/*", "*://www.instagram.com/direct/*"],
@@ -21,6 +24,7 @@
   },
   "host_permissions": [
     "*://web.whatsapp.com/*",
-    "*://www.instagram.com/direct/*"
+    "*://www.instagram.com/direct/*",
+    "http://localhost:3000/*"
   ]
 }

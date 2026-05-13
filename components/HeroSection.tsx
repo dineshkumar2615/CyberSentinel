@@ -36,7 +36,10 @@ export default function HeroSection({ threats, activeTab, onTabChange }: HeroPro
 
     // Get critical threats, or fallback to the first few threats if no critical ones exist
     const criticalThreats = threats.filter(t => t.severity === 'critical');
-    const displayThreats = criticalThreats.length > 0 ? criticalThreats : threats.slice(0, 3);
+    // Limit to most recent 10 critical threats
+    const displayThreats = criticalThreats.length > 0 
+        ? criticalThreats.slice(0, 10) 
+        : threats.slice(0, 3);
 
     // Auto-rotate the carousel
     useEffect(() => {

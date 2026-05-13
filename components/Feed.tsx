@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Threat } from '@/lib/types';
 import ThreatCard from './ThreatCard';
 import ScannerOverlay from './ScannerOverlay';
@@ -11,7 +11,7 @@ import HeroSection from './HeroSection';
 import ThreatAnalytics from './ThreatAnalytics';
 
 type CategoryFilter = 'all' | 'malware' | 'breach' | 'vulnerability' | 'ransomware' | 'phishing';
-type DateFilter = '24h' | '3d' | '7d';
+type DateFilter = '24h' | '3d' | '7d' | '30d' | 'all';
 
 export default function Feed() {
     const [threats, setThreats] = useState<Threat[]>([]);
@@ -19,11 +19,13 @@ export default function Feed() {
     const [isScanning, setIsScanning] = useState(false);
     const [lastScan, setLastScan] = useState<string | null>(null);
     const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-    const [dateFilter, setDateFilter] = useState<DateFilter>('7d');
+    const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<'threat' | 'analytics'>('threat');
     const { status } = useSession();
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const autoOpenId = searchParams.get('threatId');
 
     const fetchThreats = async () => {
         try {
@@ -71,7 +73,13 @@ export default function Feed() {
 
     // Date filtering
     const dateFilteredThreats = threats.filter(t => {
-        const msMap: Record<DateFilter, number> = { '24h': 86400000, '3d': 259200000, '7d': 604800000 };
+        if (dateFilter === 'all') return true;
+        const msMap: Record<string, number> = { 
+            '24h': 86400000, 
+            '3d': 259200000, 
+            '7d': 604800000, 
+            '30d': 2592000000 
+        };
         return Date.now() - new Date(t.timestamp).getTime() <= msMap[dateFilter];
     });
 
@@ -108,9 +116,11 @@ export default function Feed() {
     ];
 
     const dateOptions: { key: DateFilter; label: string }[] = [
-        { key: '24h', label: 'Last 24h' },
-        { key: '3d', label: '3 Days' },
-        { key: '7d', label: '7 Days' },
+        { key: '24h', label: '24h' },
+        { key: '3d', label: '3D' },
+        { key: '7d', label: '7D' },
+
+        { key: 'all', label: 'ALL' },
     ];
 
     return (
@@ -258,11 +268,15 @@ export default function Feed() {
                                 {feedThreats.map((threat, idx) => (
                                     <motion.div
                                         key={threat.id}
+                                        id={`threat-${threat.id}`}
                                         initial={{ opacity: 0, y: 16 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: Math.min(idx * 0.03, 0.5) }}
                                     >
-                                        <ThreatCard threat={threat} />
+                                        <ThreatCard 
+                                            threat={threat} 
+                                            autoOpen={autoOpenId === threat.id}
+                                        />
                                     </motion.div>
                                 ))}
                             </AnimatePresence>

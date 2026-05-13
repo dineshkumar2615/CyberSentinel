@@ -52,6 +52,10 @@ const UserSchema = new mongoose.Schema({
             type: Date,
             default: Date.now,
         },
+        platform: {
+            type: String,
+            default: 'app'
+        }
     }],
     notifications: [{
         type: { type: String, default: 'messenger' },

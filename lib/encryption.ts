@@ -88,11 +88,15 @@ export async function decryptMessage(
 
 // --- Helpers ---
 
-async function importKey(base64Key: string): Promise<CryptoKey> {
-    const keyBuffer = base64ToArrayBuffer(base64Key);
+async function importKey(inputKey: string): Promise<CryptoKey> {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(inputKey);
+    // Derive a 256-bit key by hashing the input string
+    const hash = await crypto.subtle.digest('SHA-256', data);
+    
     return crypto.subtle.importKey(
         'raw',
-        keyBuffer,
+        hash,
         ALGORITHM,
         false,
         ['encrypt', 'decrypt']

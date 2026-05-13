@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        return NextResponse.json({ favorites: user.favorites || [] });
+        const favorites = (user.favorites || []).map((fav: any) => ({
+            ...fav.toObject ? fav.toObject() : fav,
+            channelId: fav.channelId || getChannelId(fav.key)
+        }));
+
+        return NextResponse.json({ favorites });
     } catch (error) {
         console.error('Error fetching favorites:', error);
         return NextResponse.json({ error: 'Failed to fetch favorites' }, { status: 500 });

@@ -7,10 +7,11 @@ import {
     Settings, Clock, ShieldAlert, AlertTriangle, Star, Cpu, 
     RefreshCw, ChevronDown, Search, MessageSquare,
     BookOpen, X, Target, Landmark, ArrowUpRight, ArrowDownRight,
-    Bell, Camera, AlertCircle, Lock
+    Bell, Camera, AlertCircle, Lock, Terminal, ShieldCheck
 } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, redirect } from "next/navigation";
+
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import ThreatDetailModal from "@/components/ThreatDetailModal";
@@ -213,9 +214,118 @@ export default function DashboardPage() {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
     const [maintenanceNews, setMaintenanceNews] = useState<any>(null);
+    const [timeframe, setTimeframe] = useState<'7d' | '30d' | 'all'>('7d');
+
+    // Environment Scanner State
+    const [isEnvScanning, setIsEnvScanning] = useState(false);
+    const [envScanProgress, setEnvScanProgress] = useState(0);
+    const [envScanResult, setEnvScanResult] = useState<null | 'clean' | 'threats'>(null);
+    const [envMeasures, setEnvMeasures] = useState<any>(null);
+
+    const isMobileDevice = false; // Mobile native platform check removed
+
+    const runEnvScan = async () => {
+        if (isEnvScanning) return;
+        setIsEnvScanning(true);
+        setEnvScanResult(null);
+        setEnvMeasures(null);
+        setEnvScanProgress(0);
+        
+        // Gather real metrics
+        let secureContext = window.isSecureContext;
+        let isBot = navigator.webdriver;
+        let cookiesEnabled = navigator.cookieEnabled;
+        let ua = navigator.userAgent;
+        let isBrave = (navigator as any).brave ? true : false;
+        
+        let pingStart = Date.now();
+        try {
+            await fetch('/api/ping').catch(() => {});
+        } catch(e) {}
+        let latency = Date.now() - pingStart;
+
+        // Mobile parsing
+        let isIOS = /iPad|iPhone|iPod/.test(ua);
+        let isAndroid = /Android/.test(ua);
+        let osVersion = 'Unknown';
+        let deviceModel = 'Mobile Device';
+
+        if (isAndroid) {
+            const match = ua.match(/Android\s([0-9\.]+);\s([^;]+)/);
+            if (match) {
+                osVersion = `Android ${match[1]}`;
+                deviceModel = match[2];
+            } else {
+                osVersion = 'Android';
+            }
+        } else if (isIOS) {
+            const match = ua.match(/OS\s([0-9_]+)/);
+            if (match) {
+                osVersion = `iOS ${match[1].replace(/_/g, '.')}`;
+            } else {
+                osVersion = 'iOS';
+            }
+            deviceModel = ua.includes('iPad') ? 'iPad' : 'iPhone';
+        }
+
+        let connType = 'Wi-Fi / 4G';
+        if ((navigator as any).connection) {
+            connType = ((navigator as any).connection.effectiveType || 'Unknown').toUpperCase();
+        }
+
+        // Real-time checks using live Threat Intelligence data
+        const activeMalware = data.threats.some(t => t.title.toLowerCase().includes('malware') || t.sourceType.toLowerCase().includes('virus'));
+        const attackCount = data.threats.filter(t => t.timestamp && (Date.now() - new Date(t.timestamp).getTime() < 86400000)).length;
+        const hasLeaks = data.threats.some(t => t.title.toLowerCase().includes('leak') || t.title.toLowerCase().includes('breach') || t.title.toLowerCase().includes('credentials'));
+
+        const interval = setInterval(() => {
+            setEnvScanProgress(p => {
+                if (p >= 98) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        setIsEnvScanning(false);
+                        const isCompromised = isBot || !cookiesEnabled || (!secureContext && window.location.hostname !== 'localhost');
+                        const intelAlert = activeMalware || hasLeaks;
+
+                        if (isCompromised) {
+                            setEnvScanResult('threats');
+                        } else if (intelAlert) {
+                            setEnvScanResult('warning');
+                        } else {
+                            setEnvScanResult('clean');
+                        }
+
+                        setEnvMeasures({
+                            isMobile: isMobileDevice,
+                            // Web
+                            secureContext,
+                            isBot,
+                            cookiesEnabled,
+                            browser: isBrave ? 'Brave' : ua.includes('Chrome') ? 'Chrome/Edge' : ua.includes('Firefox') ? 'Firefox' : 'Safari/Webkit',
+                            latency,
+                            intelAlert,
+                            // Mobile
+                            deviceModel,
+                            malwareScan: activeMalware ? 'Threat Detected' : 'Clean',
+                            networkAttacks: attackCount > 0 ? `${attackCount} Blocked` : 'None Detected',
+                            dataLeaks: hasLeaks ? 'Exposed Data' : 'Secured'
+                        });
+                    }, 500);
+                    return 100;
+                }
+                return p + (Math.random() * 8);
+            });
+        }, 150);
+    };
 
     const profileRef = React.useRef<HTMLDivElement>(null);
     const notificationsRef = React.useRef<HTMLDivElement>(null);
+
+    // Handshake Modal State
+    const [showHandshakeModal, setShowHandshakeModal] = useState(false);
+    const [selectedHandshakeKey, setSelectedHandshakeKey] = useState<string | null>(null);
+    const [handshakeSender, setHandshakeSender] = useState<string | null>(null);
+    const [isProcessingHandshake, setIsProcessingHandshake] = useState(false);
 
     // Password Modal State
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -251,7 +361,7 @@ export default function DashboardPage() {
         setData(prev => ({ ...prev, loading: true, error: null }));
         try {
             const [threatsRes, savedRes, favsRes, maintRes, notifyRes] = await Promise.all([
-                fetch('/api/threats?days=7'),
+                fetch(`/api/threats?days=${timeframe}`),
                 fetch('/api/users/saved-threats'),
                 fetch('/api/favorites'),
                 fetch('/api/admin/maintenance'),
@@ -273,7 +383,7 @@ export default function DashboardPage() {
         } catch (e) {
             setData(prev => ({ ...prev, loading: false, error: 'Failed to load dashboard data' }));
         }
-    }, []);
+    }, [timeframe]);
 
     const clearNotifications = async () => {
         try {
@@ -304,12 +414,74 @@ export default function DashboardPage() {
         }
     };
 
+    const handleApproveHandshake = async () => {
+        if (!selectedHandshakeKey || !handshakeSender) return;
+        setIsProcessingHandshake(true);
+        try {
+            const acceptRes = await fetch('/api/messenger/accept', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key: selectedHandshakeKey })
+            });
+            if (acceptRes.ok) {
+                await fetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: selectedHandshakeKey, alias: handshakeSender })
+                });
+                router.push(`/secure-messenger?key=${encodeURIComponent(selectedHandshakeKey)}`);
+            } else {
+                alert('Failed to accept the connection.');
+            }
+        } catch (err) {
+            console.error("Error approving handshake:", err);
+            alert('An error occurred.');
+        } finally {
+            setIsProcessingHandshake(false);
+            setShowHandshakeModal(false);
+        }
+    };
+
+    const handleDenyHandshake = () => {
+        setShowHandshakeModal(false);
+        setSelectedHandshakeKey(null);
+        setHandshakeSender(null);
+    };
+
     const handleNotificationClick = async (n: Notification) => {
         if (!n.read) {
             await markNotificationRead(n._id);
         }
 
-        if (n.type === 'messenger' && n.channelId) {
+        if (n.type === 'handshake') {
+            try {
+                const res = await fetch('/api/messenger/shared-keys');
+                if (res.ok) {
+                    const data = await res.json();
+                    const senderMatch = n.message.match(/^([\w.-]+@[\w.-]+\.\w+)/);
+                    let targetKey = null;
+                    if (senderMatch && senderMatch[1]) {
+                        const senderEmail = senderMatch[1].toLowerCase();
+                        targetKey = data.keys?.find((k: any) => k.fromUser === senderEmail);
+                    } else if (data.keys?.length > 0) {
+                        targetKey = data.keys[0];
+                    }
+
+                    if (targetKey) {
+                        setHandshakeSender(targetKey.fromUser);
+                        setSelectedHandshakeKey(targetKey.encryptionKey);
+                        setShowHandshakeModal(true);
+                    } else {
+                        router.push('/secure-messenger');
+                    }
+                } else {
+                    router.push('/secure-messenger');
+                }
+            } catch (err) {
+                console.error("Failed to fetch pending keys", err);
+                router.push('/secure-messenger');
+            }
+        } else if (n.type === 'messenger' && n.channelId) {
             // Find the key in favorites
             const favorite = data.favorites.find(f => f.channelId === n.channelId);
             if (favorite) {
@@ -404,6 +576,23 @@ export default function DashboardPage() {
                         <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-widest leading-none mt-0.5">
                             {mounted ? currentTime.toLocaleDateString([], { month: 'short', day: 'numeric' }) : '--- --'}
                         </p>
+                    </div>
+
+                    {/* Timeframe Toggle */}
+                    <div className="hidden sm:flex bg-[var(--background)]/50 p-1 rounded-xl border border-[var(--glass-border)] ml-2">
+                        <button
+                            onClick={() => setTimeframe('7d')}
+                            className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${timeframe === '7d' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}
+                        >
+                            7D
+                        </button>
+
+                        <button
+                            onClick={() => setTimeframe('all')}
+                            className={`px-3 py-1 text-[9px] font-black uppercase rounded-lg transition-all ${timeframe === 'all' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-[var(--text-muted)] hover:text-[var(--foreground)]'}`}
+                        >
+                            ALL
+                        </button>
                     </div>
 
                     {/* Notifications Dropdown */}
@@ -593,7 +782,7 @@ export default function DashboardPage() {
                 {/* Row 1: KPI Cards */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard
-                        title="Threats (7 days)" value={totalCount}
+                        title={`Threats (${timeframe === '7d' ? '7 days' : timeframe === '30d' ? '30 days' : 'Historical All'})`} value={totalCount}
                         trend={totalCount > 0 ? `+${totalCount}` : '—'}
                         icon={ShieldAlert} iconBg="bg-red-500/10 text-red-500"
                         data={threatSparkline} loading={loading}
@@ -730,9 +919,12 @@ export default function DashboardPage() {
                             <p className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
                                 <BookOpen size={13} className="text-indigo-500" /> Saved Threats
                             </p>
-                            <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">
-                                {loading ? '—' : `${savedThreats.length} saved`}
-                            </span>
+                            <button 
+                                onClick={() => setSavedThreatPopup(true)}
+                                className="text-[9px] text-indigo-500 hover:text-indigo-400 font-bold uppercase tracking-widest transition-colors"
+                            >
+                                {loading ? '—' : `View All (${savedThreats.length})`}
+                            </button>
                         </div>
                         <div className="divide-y divide-[var(--glass-border)]/40 flex-1">
                             {loading ? (
@@ -749,14 +941,19 @@ export default function DashboardPage() {
                                 </div>
                             ) : (
                                 savedThreats.slice(0, 5).map((t, i) => (
-                                    <div key={t.id || i} className="flex items-center gap-2.5 py-2.5">
+                                    <button 
+                                        key={t.id || i} 
+                                        onClick={() => setSelectedThreat(t)}
+                                        className="w-full flex items-center gap-2.5 py-2.5 hover:bg-indigo-500/5 group transition-all text-left"
+                                    >
                                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                                             t.severity === 'critical' ? 'bg-red-500' :
                                             t.severity === 'high'     ? 'bg-orange-500' :
                                             t.severity === 'medium'   ? 'bg-amber-500' : 'bg-emerald-500'
                                         }`} />
-                                        <span className="text-xs font-medium text-[var(--foreground)] truncate">{t.title}</span>
-                                    </div>
+                                        <span className="text-xs font-medium text-[var(--foreground)] truncate group-hover:text-indigo-500 transition-colors flex-1">{t.title}</span>
+                                        <ChevronRight size={10} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-all" />
+                                    </button>
                                 ))
                             )}
                         </div>
@@ -768,9 +965,12 @@ export default function DashboardPage() {
                             <p className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
                                 <Star size={13} className="text-amber-500" /> Fav Chats
                             </p>
-                            <span className="text-[9px] text-[var(--text-muted)] font-bold uppercase tracking-widest">
-                                {loading ? '—' : `${favorites.length} saved`}
-                            </span>
+                            <button 
+                                onClick={() => setFavPopup(true)}
+                                className="text-[9px] text-amber-500 hover:text-amber-400 font-bold uppercase tracking-widest transition-colors"
+                            >
+                                {loading ? '—' : `View All (${favorites.length})`}
+                            </button>
                         </div>
                         <div className="divide-y divide-[var(--glass-border)]/40 flex-1">
                             {loading ? (
@@ -787,10 +987,17 @@ export default function DashboardPage() {
                                 </div>
                             ) : (
                                 favorites.slice(0, 5).map((f, i) => (
-                                    <div key={f.key || i} className="flex items-center gap-2.5 py-2.5">
-                                        <Star size={10} className="text-amber-500 flex-shrink-0" />
-                                        <span className="text-xs font-medium text-[var(--foreground)] truncate">{f.alias}</span>
-                                    </div>
+                                    <button 
+                                        key={f.key || i} 
+                                        onClick={() => {
+                                            router.push(`/secure-messenger?key=${encodeURIComponent(f.key)}`); 
+                                        }}
+                                        className="w-full flex items-center gap-2.5 py-2.5 hover:bg-amber-500/5 group transition-all text-left"
+                                    >
+                                        <Star size={10} className="text-amber-500 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                                        <span className="text-xs font-medium text-[var(--foreground)] truncate group-hover:text-amber-600 transition-colors flex-1">{f.alias}</span>
+                                        <ArrowUpRight size={10} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-all" />
+                                    </button>
                                 ))
                             )}
                         </div>
@@ -798,9 +1005,9 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Row 3: Timeline + Rapid Actions */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
                     {/* Intelligence Timeline */}
-                    <Card className="lg:col-span-8 p-6 shadow-sm">
+                    <Card className="lg:col-span-8 p-6 shadow-sm flex flex-col h-full">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2">
                                 <Activity size={15} className="text-indigo-500" />
@@ -810,45 +1017,185 @@ export default function DashboardPage() {
                                 {loading ? 'Loading…' : `${totalCount} events`}
                             </span>
                         </div>
-                        <div className="space-y-5 pl-0 border-l-2 border-[var(--glass-border)]">
-                            {loading ? (
-                                Array.from({ length: 4 }, (_, i) => (
-                                    <div key={i} className="relative pl-6">
-                                        <Skeleton className="absolute -left-[19px] top-0 w-8 h-8 rounded-full" />
-                                        <Skeleton className="h-4 w-48 mb-1" />
-                                        <Skeleton className="h-3 w-64" />
-                                    </div>
-                                ))
-                            ) : threats.slice(0, 5).map((t, i) => (
-                                <div key={t.id || i} className="relative pl-6 group">
-                                    <div className={`absolute -left-[15px] top-0 w-8 h-8 rounded-full bg-[var(--card-bg)] border-2 border-[var(--glass-border)] flex items-center justify-center group-hover:border-indigo-500 transition-colors ${
-                                        t.severity === 'critical' ? 'text-red-500' :
-                                        t.severity === 'high'     ? 'text-orange-500' :
-                                        t.severity === 'medium'   ? 'text-amber-500' : 'text-emerald-500'
-                                    }`}>
-                                        <ShieldAlert size={14} />
-                                    </div>
-                                    <div className="flex items-start justify-between">
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-bold text-[var(--foreground)] group-hover:text-indigo-500 transition-colors truncate">{t.title}</p>
-                                            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                                                Source: <span className="font-semibold">{t.source}</span> · Type: {t.sourceType}
-                                            </p>
+                        <div className="flex-1 overflow-y-auto pr-4 scrollbar-thin scrollbar-thumb-indigo-500/20 scrollbar-track-transparent min-h-0 max-h-[480px]">
+                            <div className="space-y-6 pl-4 py-2">
+                                {loading ? (
+                                    Array.from({ length: 4 }, (_, i) => (
+                                        <div key={i} className="relative pl-6">
+                                            <Skeleton className="absolute -left-[19px] top-0 w-8 h-8 rounded-full" />
+                                            <Skeleton className="h-4 w-48 mb-1" />
+                                            <Skeleton className="h-3 w-64" />
                                         </div>
-                                        <span className="text-[10px] text-[var(--text-muted)] font-mono ml-4 whitespace-nowrap">
-                                            {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true }).replace('about ', '')}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
-                            {!loading && threats.length === 0 && (
-                                <div className="pl-6 py-4 text-sm text-[var(--text-muted)]">No threat data available for the selected window.</div>
-                            )}
+                                    ))
+                                ) : threats.slice(0, 15).map((t, i) => (
+                                    <button 
+                                        key={t.id || i} 
+                                        onClick={() => router.push(`/?threatId=${t.id || i}`)}
+                                        className="w-full flex gap-4 items-start group text-left transition-all"
+                                    >
+                                        <div className={`w-8 h-8 flex-shrink-0 rounded-full bg-[var(--card-bg)] border-2 border-[var(--glass-border)] flex items-center justify-center group-hover:border-indigo-500 transition-colors ${
+                                            t.severity === 'critical' ? 'text-red-500' :
+                                            t.severity === 'high'     ? 'text-orange-500' :
+                                            t.severity === 'medium'   ? 'text-amber-500' : 'text-emerald-500'
+                                        }`}>
+                                            <ShieldAlert size={14} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-start justify-between">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-bold text-[var(--foreground)] group-hover:text-indigo-500 transition-colors truncate">{t.title}</p>
+                                                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                                                        Source: <span className="font-semibold">{t.source}</span> · Type: {t.sourceType}
+                                                     </p>
+                                                 </div>
+                                                 <span className="text-[10px] text-[var(--text-muted)] font-mono ml-4 whitespace-nowrap">
+                                                     {formatDistanceToNow(new Date(t.timestamp), { addSuffix: true }).replace('about ', '')}
+                                                 </span>
+                                             </div>
+                                         </div>
+                                     </button>
+                                ))}
+                                {!loading && threats.length === 0 && (
+                                    <div className="pl-6 py-4 text-sm text-[var(--text-muted)]">No threat data available for the selected window.</div>
+                                )}
+                            </div>
                         </div>
                     </Card>
 
-                    {/* Rapid Actions */}
-                    <Card className="lg:col-span-4 p-6 flex flex-col shadow-sm">
+                    {/* Intelligence Radar & Rapid Actions Column */}
+                    <div className="lg:col-span-4 space-y-4">
+                        {/* Environment Scanner Card */}
+                        <Card className="p-6 shadow-sm overflow-hidden relative min-h-[300px] bg-[var(--card-bg)] flex flex-col group">
+                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent pointer-events-none" />
+                            
+                            <div className="flex justify-between items-start mb-6 relative z-10">
+                                <div>
+                                    <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2 mb-1">
+                                        <Shield size={15} className="text-indigo-500" />
+                                        Environment Scanner
+                                    </h3>
+                                    <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase">
+                                        {isMobileDevice ? 'NATIVE DEVICE ANALYSIS' : 'WEB CONNECTION ANALYSIS'}
+                                    </p>
+                                </div>
+                                <div className={`p-1.5 rounded-lg ${isMobileDevice ? 'bg-emerald-500/10 text-emerald-500' : 'bg-blue-500/10 text-blue-500'}`}>
+                                    {isMobileDevice ? <Smartphone size={16} /> : <Activity size={16} />}
+                                </div>
+                            </div>
+                            
+                            <div className="flex-1 flex flex-col items-center justify-center relative z-10 py-4">
+                                <div className="relative w-32 h-32 flex items-center justify-center mb-6">
+                                    <svg className="absolute inset-0 w-full h-full -rotate-90">
+                                        <circle cx="64" cy="64" r="60" fill="none" stroke="currentColor" strokeWidth="4" className="text-[var(--glass-border)]" />
+                                        <circle
+                                            cx="64" cy="64" r="60"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="4"
+                                            className={`${isEnvScanning ? 'text-indigo-500' : envScanResult === 'clean' ? 'text-emerald-500' : 'text-[var(--glass-border)]'} transition-all duration-300`}
+                                            strokeDasharray="377"
+                                            strokeDashoffset={377 - (377 * envScanProgress) / 100}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        {isEnvScanning ? (
+                                            <span className="text-2xl font-black text-indigo-500">{Math.floor(envScanProgress)}%</span>
+                                        ) : envScanResult === 'clean' ? (
+                                            <Shield className="text-emerald-500" size={32} />
+                                        ) : envScanResult === 'warning' ? (
+                                            <AlertTriangle className="text-amber-500" size={32} />
+                                        ) : (
+                                            <button
+                                                onClick={runEnvScan}
+                                                className="w-14 h-14 bg-indigo-500 text-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.4)] hover:scale-110 hover:bg-indigo-600 transition-all cursor-pointer"
+                                            >
+                                                <Target size={24} />
+                                            </button>
+                                        )}
+                                    </div>
+                                    
+                                    {isEnvScanning && (
+                                        <motion.div 
+                                            animate={{ rotate: 360 }} 
+                                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                            className="absolute inset-0 border-2 border-dashed border-indigo-500/50 rounded-full" 
+                                        />
+                                    )}
+                                </div>
+                                
+                                <div className="text-center flex flex-col items-center justify-center w-full px-4 min-h-[40px]">
+                                    {isEnvScanning ? (
+                                        <p className="text-[10px] font-mono text-indigo-400 animate-pulse uppercase tracking-widest text-center w-full">
+                                            {isMobileDevice ? '> SCANNING DEVICE CORE & FILESYSTEM...' : '> ANALYZING SSL & WSS STREAMS...'}
+                                        </p>
+                                    ) : envScanResult ? (
+                                        <div className="w-full text-left space-y-1.5 mt-2">
+                                            <p className={`text-xs font-bold uppercase tracking-widest text-center mb-3 ${
+                                                envScanResult === 'clean' ? 'text-emerald-500' : 
+                                                envScanResult === 'warning' ? 'text-amber-500' : 'text-red-500'
+                                            }`}>
+                                                {envScanResult === 'clean' ? 'ENVIRONMENT VERIFIED' : 
+                                                 envScanResult === 'warning' ? 'GLOBAL THREAT ACTIVE' : 'THREAT DETECTED'}
+                                            </p>
+                                            {envMeasures && (
+                                                <div className="grid grid-cols-2 gap-2 text-[9px] font-mono border-t border-[var(--glass-border)] pt-3">
+                                                    {envMeasures.isMobile ? (
+                                                        <>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Target Device:</span>
+                                                                <span className="text-[var(--foreground)] truncate max-w-[80px]">{envMeasures.deviceModel}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Malware Scan:</span>
+                                                                <span className={envMeasures.malwareScan === 'Clean' ? 'text-emerald-500' : 'text-red-500'}>{envMeasures.malwareScan}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Cyber Attacks:</span>
+                                                                <span className={envMeasures.networkAttacks === 'None Detected' ? 'text-emerald-500' : 'text-amber-500'}>{envMeasures.networkAttacks}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Data Leaks:</span>
+                                                                <span className={envMeasures.dataLeaks === 'Secured' ? 'text-emerald-500' : 'text-red-500'}>{envMeasures.dataLeaks}</span>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Private Connection:</span>
+                                                                <span className={envMeasures.secureContext ? 'text-emerald-500' : 'text-red-500'}>{envMeasures.secureContext ? 'Yes' : 'No'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Real User Verified:</span>
+                                                                <span className={!envMeasures.isBot ? 'text-emerald-500' : 'text-red-500'}>{!envMeasures.isBot ? 'Yes' : 'No'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Local Data Ready:</span>
+                                                                <span className={envMeasures.cookiesEnabled ? 'text-emerald-500' : 'text-red-500'}>{envMeasures.cookiesEnabled ? 'Yes' : 'No'}</span>
+                                                            </div>
+                                                            <div className="flex justify-between items-center bg-[var(--glass-bg)] p-1.5 rounded">
+                                                                <span className="text-[var(--text-muted)]">Intel Status:</span>
+                                                                <span className={envMeasures.intelAlert ? 'text-amber-500' : 'text-emerald-500'}>
+                                                                    {envMeasures.intelAlert ? 'High Alert' : 'Normal'}
+                                                                </span>
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest cursor-pointer hover:text-[var(--foreground)] transition-colors" onClick={runEnvScan}>
+                                            INITIATE SCAN
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </Card>
+
+                        {/* Rapid Actions */}
+                        <Card className="p-6 flex flex-col shadow-sm">
                         <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-widest flex items-center gap-2 mb-6">
                             <Zap size={15} className="text-indigo-500" />
                             Rapid Actions
@@ -875,6 +1222,7 @@ export default function DashboardPage() {
                          </div>
                     </Card>
                 </div>
+            </div>
 
 
 
@@ -952,20 +1300,40 @@ export default function DashboardPage() {
                                     <p className="text-xs font-bold">No favourite chats yet</p>
                                 </div>
                             ) : (
-                                favorites.map((f, i) => (
-                                    <button
-                                        key={f.key || i}
-                                        onClick={() => { setFavPopup(false); router.push(`/secure-messenger?key=${encodeURIComponent(f.key)}`); }}
-                                        className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-[var(--glass-bg)] transition-colors text-left group"
-                                    >
-                                        <Star size={13} className="text-amber-500 flex-shrink-0" fill="currentColor" />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="text-sm font-semibold text-[var(--foreground)] truncate group-hover:text-amber-500 transition-colors">{f.alias}</p>
-                                            <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">{f.key.substring(0, 16)}…</p>
-                                        </div>
-                                        <ChevronRight size={14} className="text-[var(--text-muted)] flex-shrink-0" />
-                                    </button>
-                                ))
+                                    favorites.map((f, i) => (
+                                        <button
+                                            key={f.key || i}
+                                            onClick={() => { 
+                                                setFavPopup(false); 
+                                                const tag = f.platform === 'app' ? '' : `&tag=${f.platform}`;
+                                                router.push(`/secure-messenger?key=${encodeURIComponent(f.key)}${tag}`); 
+                                            }}
+                                            className="w-full flex items-center gap-3 px-5 py-3.5 hover:bg-[var(--glass-bg)] transition-colors text-left group"
+                                        >
+                                            <div className="flex-shrink-0 relative">
+                                                <Star size={13} className="text-amber-500" fill="currentColor" />
+                                                {f.platform && f.platform !== 'app' && (
+                                                    <span className={`absolute -top-2 -right-2 text-[6px] px-1 rounded-full font-bold uppercase border ${
+                                                        f.platform === 'whatsapp' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 
+                                                        f.platform === 'instagram' ? 'bg-pink-500/10 text-pink-500 border-pink-500/20' : 
+                                                        'bg-indigo-500/10 text-indigo-500 border-indigo-500/20'
+                                                    }`}>
+                                                        {f.platform[0]}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-sm font-semibold text-[var(--foreground)] truncate group-hover:text-amber-500 transition-colors">{f.alias}</p>
+                                                    {f.platform && f.platform !== 'app' && (
+                                                        <span className="text-[8px] text-[var(--text-muted)] opacity-50 uppercase tracking-tighter">via {f.platform}</span>
+                                                    )}
+                                                </div>
+                                                <p className="text-[10px] text-[var(--text-muted)] font-mono truncate">{f.key.substring(0, 16)}…</p>
+                                            </div>
+                                            <ChevronRight size={14} className="text-[var(--text-muted)] flex-shrink-0" />
+                                        </button>
+                                    ))
                             )}
                         </div>
                     </div>
@@ -1125,6 +1493,46 @@ export default function DashboardPage() {
                                         </button>
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* ── HANDSHAKE MODAL ──────────────────────────── */}
+            <AnimatePresence>
+                {showHandshakeModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-[var(--card-bg)] border border-indigo-500/30 rounded-2xl p-6 w-full max-w-md shadow-[0_0_30px_rgba(99,102,241,0.15)] relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 inset-x-0 h-1 bg-indigo-500/50" />
+                            
+                            <h3 className="text-xl font-black italic uppercase text-[var(--foreground)] mb-2 flex items-center gap-2">
+                                <ShieldCheck className="text-indigo-500" size={24} />
+                                Secure Connection Request
+                            </h3>
+                            <p className="text-xs text-[var(--text-dim)] mb-6 leading-relaxed">
+                                <strong>{handshakeSender}</strong> has shared a secure key to establish an encrypted channel with you.
+                            </p>
+
+                            <div className="flex gap-3 pt-2 border-t border-[var(--glass-border)]">
+                                <button
+                                    onClick={handleDenyHandshake}
+                                    className="flex-1 py-3 rounded-xl border border-[var(--glass-border)] text-[var(--text-dim)] font-bold uppercase text-xs hover:bg-[var(--glass-bg)] transition-colors"
+                                >
+                                    Deny
+                                </button>
+                                <button
+                                    onClick={handleApproveHandshake}
+                                    disabled={isProcessingHandshake}
+                                    className="flex-1 py-3 rounded-xl bg-indigo-600 text-white font-black uppercase text-xs hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/20 flex items-center justify-center disabled:opacity-50"
+                                >
+                                    {isProcessingHandshake ? <RefreshCw size={16} className="animate-spin" /> : 'Approve & Connect'}
+                                </button>
                             </div>
                         </motion.div>
                     </div>

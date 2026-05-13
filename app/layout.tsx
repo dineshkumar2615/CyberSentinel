@@ -24,11 +24,18 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  themeColor: "#000000",
 };
 
 export const metadata: Metadata = {
   title: "CyberSentinel | Live Threat Feed",
   description: "Real-time cyber threat intelligence",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "CyberSentinel",
+  },
 };
 
 export default function RootLayout({

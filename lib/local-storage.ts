@@ -20,6 +20,7 @@ export interface ChatMessage {
     timestamp: number;
     senderId?: string;
     isDecrypted?: boolean;
+    isError?: boolean;
     clientMessageId?: string;
 }
 
@@ -97,6 +98,55 @@ export function nukeAllData() {
         }
     }
     localStorage.removeItem('secure_messenger_favs');
+    localStorage.removeItem('secure_messenger_recents');
+}
+
+// --- Recent Sessions Management ---
+
+export interface RecentSession {
+    key: string;
+    alias: string;
+    lastTimestamp: number;
+    platform?: string;
+}
+
+const RECENT_STORAGE_KEY = 'secure_messenger_recents';
+
+export function getRecents(): RecentSession[] {
+    try {
+        const data = localStorage.getItem(RECENT_STORAGE_KEY);
+        return data ? JSON.parse(data) : [];
+    } catch {
+        return [];
+    }
+}
+
+export function addRecentSession(key: string, alias?: string, platform?: string) {
+    let recents = getRecents();
+    const existingIndex = recents.findIndex(r => r.key === key);
+    
+    const sessionAlias = alias || `Session ${key.substring(0, 6)}...`;
+    
+    if (existingIndex > -1) {
+        // Move to top and update timestamp
+        const existing = recents.splice(existingIndex, 1)[0];
+        recents.unshift({
+            ...existing,
+            lastTimestamp: Date.now(),
+            platform: platform || existing.platform
+        });
+    } else {
+        // Add new to top
+        recents.unshift({
+            key,
+            alias: sessionAlias,
+            lastTimestamp: Date.now(),
+            platform
+        });
+    }
+    
+    // Limit to 20 recents
+    localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recents.slice(0, 20)));
 }
 
 // --- Favorites Management ---

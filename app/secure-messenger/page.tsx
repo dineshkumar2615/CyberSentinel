@@ -7,12 +7,13 @@ import { saveSession, loadSession, deleteSession, ChatMessage, nukeAllData } fro
 
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { saveFavorite, removeFavorite, isFavorite } from '@/lib/local-storage';
+import { saveFavorite, removeFavorite, isFavorite, getRecents, addRecentSession, RecentSession } from '@/lib/local-storage';
 
 function SecureMessengerContent() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const urlTag = searchParams.get('tag'); // whatsapp, instagram, etc.
 
     useEffect(() => {
         // Redirect logic removed - using action-based auth instead
@@ -75,6 +76,10 @@ function SecureMessengerContent() {
     const [showFavModal, setShowFavModal] = useState(false);
     const [favAliasInput, setFavAliasInput] = useState('');
     const [showExtensionModal, setShowExtensionModal] = useState(false);
+    const [showEmailPrompt, setShowEmailPrompt] = useState(false);
+    const [recipientEmail, setRecipientEmail] = useState('');
+    const [isSharingKey, setIsSharingKey] = useState(false);
+    const [hideKeyInHeader, setHideKeyInHeader] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const lastJoinedKey = useRef<string | null>(null);
 
@@ -88,7 +93,7 @@ function SecureMessengerContent() {
             return;
         }
 
-        if (keyParam && !isSessionActive && keyParam !== lastJoinedKey.current) {
+        if (keyParam && keyParam !== lastJoinedKey.current) {
             lastJoinedKey.current = keyParam;
             setTempKeyInput(keyParam);
             // Small delay to allow state update before joining
@@ -98,6 +103,7 @@ function SecureMessengerContent() {
         }
     }, [searchParams, isSessionActive]);
 
+    // Polling removed in favor of Dashboard Notifications
     // --- Session Management ---
 
     const handleGenerateKey = async () => {
@@ -108,6 +114,29 @@ function SecureMessengerContent() {
         const key = await generateSessionKey();
         setTempKeyInput(key);
         setShowKey(true);
+        setShowEmailPrompt(true); // Ask for second person email
+    };
+
+    const shareKey = async (key: string, email: string) => {
+        setIsSharingKey(true);
+        try {
+            const normalizedEmail = email.toLowerCase().trim();
+            const res = await fetch('/api/messenger/share', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key, recipientEmail: normalizedEmail })
+            });
+            if (!res.ok) throw new Error("Sharing failed");
+            console.log(`[shareKey] Successfully shared key with ${normalizedEmail}`);
+            alert(`Key shared successfully with ${normalizedEmail}`);
+        } catch (err) {
+            console.error("[shareKey] Key sharing failed:", err);
+            alert("Failed to share key. Please check the recipient's email.");
+        } finally {
+            setIsSharingKey(false);
+            setRecipientEmail('');
+            setShowEmailPrompt(false);
+        }
     };
 
     const handleJoinSession = async (manualKey?: string) => {
@@ -117,14 +146,25 @@ function SecureMessengerContent() {
         }
         const keyToUse = manualKey || tempKeyInput;
 
-        if (!keyToUse.trim() || keyToUse.length < 10) {
-            if (!manualKey) alert("Invalid Key Format");
+        if (!keyToUse.trim() || keyToUse.length < 4) {
+            if (!manualKey) alert("Invalid Key Format (min 4 chars)");
             return;
         }
 
         const key = keyToUse.trim();
         setSessionKey(key);
         setIsSessionActive(true);
+        setMessages([]); // Clear previous messages for session isolation
+        setEncryptedOutput(''); // Clear any pending encrypted output
+        
+        // Reset sync state for new channel
+        lastSyncTimeRef.current = 0;
+        channelIdRef.current = null;
+        
+        // Handle key sharing if email was provided
+        if (recipientEmail && !isSharingKey) {
+            shareKey(key, recipientEmail);
+        }
 
         // Initialize Channel ID immediately
         const encoder = new TextEncoder();
@@ -133,22 +173,86 @@ function SecureMessengerContent() {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         channelIdRef.current = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
+        // Ensure deviceId is computed before processing messages
+        if (!deviceIdRef.current && session?.user?.email) {
+            const emailEncoder = new TextEncoder();
+            const emailData = emailEncoder.encode(session.user.email.toLowerCase());
+            const emailHash = await crypto.subtle.digest('SHA-256', emailData);
+            deviceIdRef.current = Array.from(new Uint8Array(emailHash)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
         // Check favorites async
         const favStatus = await isFavorite(key, status === 'authenticated');
         setIsFav(favStatus);
 
-        // Try to load existing history
-        const sessionData = await loadSession(key);
-        if (sessionData) {
-            setMessages(sessionData.messages);
-            // Start sync from the last message we already have
-            if (sessionData.messages.length > 0) {
-                lastSyncTimeRef.current = Math.max(...sessionData.messages.map(m => m.timestamp));
+        // Always fetch full server history (since=0) first so extension messages
+        // (which may have older timestamps than localStorage web messages) are never missed.
+        const channelId = channelIdRef.current;
+        let serverMessages: ChatMessage[] = [];
+        try {
+            const res = await fetch(`/api/messenger/messages?channelId=${channelId}&since=0`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.messages && data.messages.length > 0) {
+                    const decoded: ChatMessage[] = [];
+                    let maxTs = 0;
+                    for (const msg of data.messages) {
+                        if (msg.timestamp > maxTs) maxTs = msg.timestamp;
+                        const isMe = msg.senderId === deviceIdRef.current;
+                        let displayedText = msg.encryptedPayload;
+                        let isAutoDecrypted = false;
+                        let isError = false;
+                        try {
+                            displayedText = await decryptMessage(msg.encryptedPayload, key);
+                            isAutoDecrypted = true;
+                        } catch {
+                            displayedText = '[Encrypted - Key Mismatch]';
+                            isError = true;
+                        }
+                        decoded.push({
+                            id: msg._id || msg.timestamp.toString(),
+                            sender: isMe ? 'me' : 'them',
+                            text: displayedText,
+                            timestamp: msg.timestamp,
+                            senderId: msg.senderId,
+                            isDecrypted: isAutoDecrypted,
+                            isError,
+                            clientMessageId: msg.clientMessageId
+                        });
+                    }
+                    serverMessages = decoded;
+                    lastSyncTimeRef.current = maxTs;
+                }
             }
-        } else {
-            setMessages([]);
-            lastSyncTimeRef.current = 0;
+        } catch (err) {
+            console.error('[Join] Failed to fetch server history:', err);
         }
+
+        // Load localStorage history and merge, deduplicate, sort
+        const sessionData = await loadSession(key);
+        const localMessages = sessionData?.messages || [];
+        const merged = Array.from(
+            new Map([...serverMessages, ...localMessages].map(m => [m.clientMessageId || m.id, m])).values()
+        ).sort((a, b) => a.timestamp - b.timestamp);
+
+        // If local has messages newer than server, track the true max
+        if (localMessages.length > 0) {
+            const localMax = Math.max(...localMessages.map(m => m.timestamp));
+            if (localMax > lastSyncTimeRef.current) {
+                lastSyncTimeRef.current = localMax;
+            }
+        }
+
+        setMessages(merged);
+        if (isSaving && merged.length > 0) {
+            saveSession(key, merged).catch(e => console.error(e));
+        }
+
+        // Mark as accepted in the background
+        fetch('/api/messenger/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key })
+        }).catch(err => console.error("Failed to mark key as accepted", err));
     };
 
     const handleLeaveSession = () => {
@@ -167,9 +271,16 @@ function SecureMessengerContent() {
     };
 
     const handleNuke = async () => {
-        if (confirm("WARNING: This will permanently erase this chat session from this device. Proceed?")) {
-            await deleteSession(sessionKey);
-            await removeFavorite(sessionKey, status === 'authenticated');
+        const confirmMsg = isSaving 
+            ? "Persistence is ON. This will clear your current view but KEEP your history in storage. Proceed?" 
+            : "WARNING: This will permanently erase this chat history from this device. Proceed?";
+
+        if (confirm(confirmMsg)) {
+            if (!isSaving) {
+                await deleteSession(sessionKey);
+            }
+            
+            // Note: We no longer remove from favorites here as requested.
             setMessages([]);
             setIsSessionActive(false);
             setSessionKey('');
@@ -251,6 +362,7 @@ function SecureMessengerContent() {
                 text: content,
                 timestamp: Date.now(),
                 senderId: deviceIdRef.current,
+                isDecrypted: true,
                 clientMessageId: clientMessageId
             };
 
@@ -273,13 +385,16 @@ function SecureMessengerContent() {
                         senderId: deviceIdRef.current,
                         senderEmail: session?.user?.email,
                         encryptedPayload: ciphertext,
-                        clientMessageId: clientMessageId
+                        clientMessageId: clientMessageId,
+                        tag: urlTag || 'app'
                     })
+                }).then(res => {
+                    if (!res.ok) throw new Error(`API error: ${res.status}`);
                 }).catch(err => console.error("Failed to sync message", err));
             }
-        } catch (e) {
-            console.error(e);
-            alert("Transmission Failed");
+        } catch (e: any) {
+            console.error("Encryption/Transmission error:", e);
+            alert(`Transmission Failed: ${e.message || 'Unknown Error'}`);
         }
     };
 
@@ -344,9 +459,9 @@ function SecureMessengerContent() {
             });
             
             setDecryptInput('');
-        } catch (e) {
-            console.error(e);
-            alert("Decryption Failed. Ensure you are using the correct Session Key.");
+        } catch (e: any) {
+            console.error("Manual Decryption Error:", e);
+            alert(`Decryption Failed: ${e.message || 'Check your Session Key'}`);
         }
     };
 
@@ -364,6 +479,14 @@ function SecureMessengerContent() {
         const syncMessages = async () => {
             try {
                 if (!channelIdRef.current) {
+                    if (session?.user?.email) {
+                        const encoder = new TextEncoder();
+                        const data = encoder.encode(session.user.email.toLowerCase());
+                        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                        const hashArray = Array.from(new Uint8Array(hashBuffer));
+                        deviceIdRef.current = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                    }
+
                     const encoder = new TextEncoder();
                     const data = encoder.encode(sessionKey);
                     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
@@ -371,7 +494,10 @@ function SecureMessengerContent() {
                     channelIdRef.current = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
                 }
 
+                // Fetch ALL messages for this channel regardless of platform tag
+                // The Secure Messenger is the unified hub — messages from extension (instagram/whatsapp) and web all show here
                 const res = await fetch(`/api/messenger/messages?channelId=${channelIdRef.current}&since=${lastSyncTimeRef.current}`);
+                
                 if (res.ok && isPolling) {
                     const data = await res.json();
                     if (data.messages && data.messages.length > 0) {
@@ -381,20 +507,19 @@ function SecureMessengerContent() {
                         for (const msg of data.messages) {
                             if (msg.timestamp > maxTimestamp) maxTimestamp = msg.timestamp;
                             
-                            // Correctly identify the sender
                             const isMe = msg.senderId === deviceIdRef.current;
                             let displayedText = msg.encryptedPayload;
                             let isAutoDecrypted = false;
+                            let isError = false;
 
-                            // Auto-decrypt if key is available
                             try {
                                 if (sessionKey) {
                                     displayedText = await decryptMessage(msg.encryptedPayload, sessionKey);
                                     isAutoDecrypted = true;
                                 }
                             } catch (err) {
-                                console.warn("Auto-decryption failed for message:", msg.timestamp);
                                 displayedText = "[Encrypted Message - Key Mismatch]";
+                                isError = true;
                             }
 
                             newItems.push({
@@ -404,32 +529,28 @@ function SecureMessengerContent() {
                                 timestamp: msg.timestamp,
                                 senderId: msg.senderId,
                                 isDecrypted: isAutoDecrypted,
+                                isError: isError,
                                 clientMessageId: msg.clientMessageId
                             });
                         }
 
+                        setMessages(prev => {
+                            const combined = [...prev, ...newItems];
+                            return Array.from(new Map(combined.map(m => [m.clientMessageId || m.id, m])).values())
+                                .sort((a, b) => a.timestamp - b.timestamp);
+                        });
                         lastSyncTimeRef.current = maxTimestamp;
-
-                        if (newItems.length > 0) {
+                        
+                        if (isSaving && newItems.length > 0) {
+                            // Fetch full state for saving
                             setMessages(prev => {
-                                // De-duplicate by checking ID or (timestamp + senderId)
-                                const combined = [...prev];
-                                for (const item of newItems) {
-                                    const exists = combined.some(m => 
-                                        (item.clientMessageId && m.clientMessageId === item.clientMessageId) ||
-                                        m.id === item.id || 
-                                        (m.timestamp === item.timestamp && m.senderId === item.senderId)
-                                    );
-                                    if (!exists) combined.push(item);
-                                }
-                                
-                                if (isSaving) {
-                                    saveSession(sessionKey, combined).catch(e => console.error(e));
-                                }
-                                return combined;
+                                saveSession(sessionKey, prev).catch(e => console.error(e));
+                                return prev;
                             });
                         }
                     }
+                } else if (!res.ok) {
+                    console.warn(`Sync failed with status: ${res.status}`);
                 }
             } catch (err) {
                 console.error("Live Sync Error:", err);
@@ -437,13 +558,13 @@ function SecureMessengerContent() {
         };
 
         const interval = setInterval(syncMessages, 3000);
-        syncMessages(); // Initial run
+        syncMessages();
 
         return () => {
             isPolling = false;
             clearInterval(interval);
         };
-    }, [isSessionActive, sessionKey, status, messages, isSaving]);
+    }, [isSessionActive, sessionKey, status, urlTag, isSaving]);
 
 
     // Auto-scroll
@@ -460,7 +581,7 @@ function SecureMessengerContent() {
     if (status === 'loading') return <div className="min-h-screen bg-[var(--background)]" />;
 
     return (
-        <main className="h-screen md:min-h-screen pt-8 pb-16 md:pt-12 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-hidden md:overflow-visible">
+        <main className="min-h-screen pt-8 pb-16 md:pt-12 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-y-auto lg:overflow-hidden font-sans">
             {/* Favorite Modal */}
             <AnimatePresence>
                 {showFavModal && (
@@ -541,13 +662,71 @@ function SecureMessengerContent() {
                                     Deny
                                 </button>
                                 <a
-                                    href="/extension.zip"
+                                    href="/api/download/extension"
                                     download
                                     onClick={() => setShowExtensionModal(false)}
                                     className="flex-1 py-3 rounded-xl bg-neon-green text-black font-black uppercase text-[10px] sm:text-xs hover:bg-neon-green/90 transition-colors shadow-lg shadow-neon-green/20 text-center flex items-center justify-center"
                                 >
                                     Grant & Download
                                 </a>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+            {/* Email Prompt Modal */}
+            <AnimatePresence>
+                {showEmailPrompt && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md">
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            className="bg-[var(--card-bg)] border border-neon-blue/30 rounded-2xl p-6 w-full max-w-md shadow-[0_0_40px_rgba(0,210,255,0.15)] relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 inset-x-0 h-1 bg-neon-blue" />
+                            <h3 className="text-xl font-black italic uppercase text-[var(--foreground)] mb-2 flex items-center gap-2">
+                                <Send className="text-neon-blue" size={24} />
+                                Key Sharing
+                            </h3>
+                            <p className="text-xs text-[var(--text-dim)] mb-6 leading-relaxed">
+                                To automatically transmit this key to your contact, please enter their registered email address. This key will appear in their dashboard notifications.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-[var(--text-dim)] block mb-2">Recipient Email (Optional)</label>
+                                    <input
+                                        type="email"
+                                        placeholder="user@cybersentinel.ai"
+                                        value={recipientEmail}
+                                        onChange={(e) => setRecipientEmail(e.target.value)}
+                                        className="w-full bg-[var(--background)] border border-[var(--glass-border)] rounded-xl px-4 py-3 text-sm text-[var(--foreground)] focus:border-neon-blue outline-none transition-colors"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        onClick={() => { setShowEmailPrompt(false); setRecipientEmail(''); }}
+                                        className="flex-1 py-3 rounded-xl border border-[var(--glass-border)] text-[var(--text-dim)] font-bold uppercase text-xs hover:bg-[var(--glass-bg)] transition-colors"
+                                    >
+                                        Skip Sharing
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (recipientEmail) {
+                                                shareKey(tempKeyInput || sessionKey, recipientEmail);
+                                            } else {
+                                                setShowEmailPrompt(false);
+                                            }
+                                        }}
+                                        disabled={isSharingKey}
+                                        className="flex-1 py-3 rounded-xl bg-neon-blue text-black font-black uppercase text-xs hover:bg-neon-blue/90 transition-colors shadow-lg shadow-neon-blue/20 disabled:opacity-50"
+                                    >
+                                        {isSharingKey ? 'Sharing...' : 'Share Key Now'}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
@@ -560,10 +739,10 @@ function SecureMessengerContent() {
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-neon-green/50 to-transparent" />
             </div>
 
-            <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center max-w-lg mx-auto' : 'grid lg:grid-cols-12 flex-1 md:h-[calc(100vh-140px)] lg:h-[85vh]'}`}>
+            <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center py-10 max-w-lg mx-auto' : 'flex flex-col lg:grid lg:grid-cols-20 flex-1 md:h-[calc(100vh-140px)] lg:h-[82vh] max-w-[1400px] mx-auto'}`}>
 
                 {/* LEFT PANEL: Session Control */}
-                <div className={`${isSessionActive ? 'lg:col-span-4' : 'w-full'} flex flex-col gap-6 justify-center`}>
+                <div className={`${isSessionActive ? 'lg:col-span-7 order-2 lg:order-1 lg:h-full lg:pr-2 justify-center' : 'w-full'} flex flex-col min-h-0`}>
                     {/* Header Card */}
                     <div className={`bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] p-8 relative overflow-hidden ${isSessionActive ? 'hidden md:block' : 'block'}`}>
                         <div className="absolute top-0 right-0 p-4 opacity-20 pointer-events-none">
@@ -657,9 +836,21 @@ function SecureMessengerContent() {
                                         <Lock size={20} />
                                     </div>
                                     <div>
-                                        <div className="text-xs font-bold text-neon-green uppercase">Channel Active</div>
-                                        <div className="text-[10px] text-[var(--text-dim)] font-mono">
-                                            {sessionKey.substring(0, 8)}...{sessionKey.substring(sessionKey.length - 8)}
+                                        <div className="text-xs font-bold text-neon-green uppercase flex items-center gap-2">
+                                            Channel Active
+                                            {channelIdRef.current && (
+                                                <span className="text-[8px] px-1.5 py-0.5 rounded bg-neon-green/20 border border-neon-green/30 font-mono">
+                                                    ID: {channelIdRef.current.substring(0, 6)}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-[10px] text-[var(--text-dim)] font-mono flex items-center gap-2">
+                                            <span className="break-all">
+                                                {hideKeyInHeader ? `${sessionKey.substring(0, 8)}...${sessionKey.substring(sessionKey.length - 8)}` : sessionKey}
+                                            </span>
+                                            <button onClick={() => setHideKeyInHeader(!hideKeyInHeader)} className="p-1 hover:text-neon-green transition-colors">
+                                                {hideKeyInHeader ? <Eye size={12} /> : <EyeOff size={12} />}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -699,10 +890,10 @@ function SecureMessengerContent() {
                             </div>
                         )}
                     </div>
-                </div>
+            </div>
 
                 {/* RIGHT PANEL: Chat Interface */}
-                <div className={`lg:col-span-8 flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative ${!isSessionActive ? 'hidden' : 'flex'}`}>
+                <div className={`lg:col-span-13 order-1 lg:order-2 flex flex-col h-[100dvh] lg:h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative ${!isSessionActive ? 'hidden' : 'flex shrink-0'}`}>
 
                     {!isSessionActive ? (
                         <div className="absolute inset-0 hidden md:flex flex-col items-center justify-center text-[var(--text-dim)] opacity-50 pointer-events-none">
@@ -733,8 +924,13 @@ function SecureMessengerContent() {
                                             </div>
                                             <div className="text-[10px] text-[var(--text-muted)] font-mono uppercase tracking-wider">Session Key</div>
                                         </div>
-                                        <div className="text-[11px] text-[var(--foreground)] font-mono font-bold leading-none truncate">
-                                            {sessionKey.substring(0, 10)}...{sessionKey.substring(sessionKey.length - 8)}
+                                        <div className="text-[11px] text-[var(--foreground)] font-mono font-bold leading-none flex items-center gap-2">
+                                            <span className="break-all">
+                                                {hideKeyInHeader ? `${sessionKey.substring(0, 10)}...${sessionKey.substring(sessionKey.length - 8)}` : sessionKey}
+                                            </span>
+                                            <button onClick={() => setHideKeyInHeader(!hideKeyInHeader)} className="p-1 hover:text-neon-green transition-colors">
+                                                {hideKeyInHeader ? <Eye size={12} /> : <EyeOff size={12} />}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -781,20 +977,38 @@ function SecureMessengerContent() {
                                             : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
                                             } relative break-words overflow-hidden`}
                                         >
-                                            {msg.text.startsWith('data:image/') ? (
-                                                <div className="relative group/img cursor-zoom-in" onClick={() => setPreviewImage(msg.text)}>
-                                                    <img 
-                                                        src={msg.text} 
-                                                        alt="Encrypted Transmission" 
-                                                        className="rounded-lg max-w-full h-auto border border-[var(--glass-border)]"
-                                                    />
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                                        <Maximize2 size={24} className="text-white" />
+                                            <div className="font-mono text-sm whitespace-pre-wrap break-words leading-relaxed overflow-hidden">
+                                                {msg.isDecrypted ? (
+                                                    msg.text.startsWith('data:image/') ? (
+                                                        <div className="relative group/img cursor-zoom-in" onClick={() => setPreviewImage(msg.text)}>
+                                                            <img 
+                                                                src={msg.text} 
+                                                                alt="Encrypted Transmission" 
+                                                                className="rounded-lg max-w-full h-auto border border-[var(--glass-border)]"
+                                                            />
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                                <Maximize2 size={24} className="text-white" />
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
+                                                    )
+                                                ) : msg.isError ? (
+                                                    <div className="flex items-center gap-2 p-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-[10px] md:text-xs text-red-400 font-bold uppercase">
+                                                        <Shield size={12} />
+                                                        Key Mismatch / Legacy
                                                     </div>
-                                                </div>
-                                            ) : (
-                                                <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
-                                            )}
+                                                ) : (
+                                                    <div className="flex items-start gap-3">
+                                                        <div className="text-[var(--text-muted)] flex-1 break-all blur-[3px] select-none text-[10px] md:text-xs">
+                                                            {msg.text.substring(0, 150)}...
+                                                        </div>
+                                                        <div className="shrink-0 p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                                            <Lock size={14} />
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
                                             <span className="text-[8px] md:text-[9px] opacity-40 mt-1 md:mt-2 block font-mono text-right">
                                                 {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>

@@ -2,11 +2,77 @@ const origin = window.location.hostname;
 const storageKeyDb = `cs_keys_db_${origin}`;
 const storageKeyAlias = `cs_active_alias_${origin}`;
 const storageKeyPos = `cs_widget_pos_${origin}`;
+const APP_URL = "http://localhost:3000";
 
 let keysDb = {};
 let activeAlias = '';
 let sessionKey = '';
 let savedPos = {"bottom":"20px","right":"20px"};
+function syncKeysFromDB() {
+    const storageKeyUser = `cs_sync_user_${origin}`;
+    chrome.storage.local.get([storageKeyUser], (res) => {
+        const linkedEmail = res[storageKeyUser];
+        if (!linkedEmail) return; // Don't sync if not linked!
+
+        chrome.runtime.sendMessage({ 
+            type: 'CYBER_GET_FAVORITES',
+            linkedEmail: linkedEmail 
+        }, (response) => {
+            if (response && response.success) {
+                const { favorites, email } = response;
+                
+                // Confirm UI state
+                const usernameInput = document.getElementById('cs-username-input');
+                const usernameContainer = document.getElementById('cs-username-container');
+                const linkedContainer = document.getElementById('cs-linked-user');
+                const linkedEmailSpan = document.getElementById('cs-linked-email');
+
+                if (usernameInput && usernameContainer && linkedContainer && linkedEmailSpan) {
+                    usernameInput.value = linkedEmail;
+                    usernameContainer.style.display = 'none';
+                    linkedContainer.style.display = 'block';
+                    linkedEmailSpan.innerText = linkedEmail;
+                }
+            } else {
+                if (response?.error === 'USER_NOT_FOUND') {
+                    showStatus('Account not found. Please create an account in CyberSentinel App first!');
+                } else if (response?.error === 'NOT_LOGGED_IN') {
+                    showStatus('Please log in to CyberSentinel Web App to sync.');
+                }
+            }
+        });
+    });
+}
+
+function syncMessageToApp(ciphertext, isMe = true) {
+    if (!sessionKey || !activeAlias) return;
+    
+    const usernameInput = document.getElementById('cs-username-input');
+    const username = usernameInput ? usernameInput.value.trim() : '';
+    
+    let tag = origin.includes('whatsapp.com') ? 'whatsapp' : origin.includes('instagram.com') ? 'instagram' : 'web';
+
+    chrome.runtime.sendMessage({
+        type: 'CYBER_SYNC_MESSAGE',
+        payload: {
+            username: username,
+            key: sessionKey,
+            tag: tag,
+            alias: activeAlias,
+            ciphertext: ciphertext,
+            isMe: isMe
+        }
+    }, (response) => {
+        if (response && response.success) {
+            console.log('Synced to app successfully');
+        } else {
+            if (response?.error && response.error.includes('404')) {
+                showStatus('Account not found. Please create an account in CyberSentinel.');
+            }
+            console.error('Sync failed:', response?.error);
+        }
+    });
+}
 
 // Inject the floating UI
 function injectUI() {
@@ -81,7 +147,16 @@ function injectUI() {
             
             <textarea id="cs-message-input" placeholder="Type plain text to encrypt, OR paste incoming ciphertext here to decrypt..."></textarea>
             
-            <div style="display: flex; gap: 8px;">
+            <div id="cs-username-container" style="display: flex; gap: 4px; margin-top: 4px;">
+                <input type="text" id="cs-username-input" placeholder="Sentinel Username/Email (for sync)" style="background: var(--bg-color); color: var(--text-color); border: 1px solid #4a5568; border-radius: 4px; padding: 6px 10px; font-size: 11px; width: 100%; box-sizing: border-box; border-color: #6366f1;" title="Enter your CyberSentinel email or username to sync chats to DB" />
+                <button id="cs-save-username-btn" class="cs-button cs-btn-secondary" style="padding: 4px 8px; font-size: 10px;">Link</button>
+            </div>
+            
+            <div id="cs-linked-user" style="display: none; font-size: 10px; color: #10b981; margin-top: 4px; text-align: center; text-transform: uppercase; font-weight: bold;">
+                LINKED TO: <span id="cs-linked-email"></span>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
                 <button id="cs-encrypt-btn" class="cs-action-btn cs-btn-green">Encrypt &amp; Copy</button>
                 <button id="cs-decrypt-btn" class="cs-action-btn cs-btn-outline">Decrypt</button>
             </div>
@@ -103,6 +178,31 @@ function attachEventListeners(container) {
     const newKeyPanel = document.getElementById('cs-new-key-panel');
     const toggleBtn = document.getElementById('cs-toggle-btn');
     const msgInput = document.getElementById('cs-message-input');
+    const usernameInput = document.getElementById('cs-username-input');
+    const usernameContainer = document.getElementById('cs-username-container');
+    const linkedUserDiv = document.getElementById('cs-linked-user');
+    const linkedEmailSpan = document.getElementById('cs-linked-email');
+
+    // Load Username
+    const storageKeyUser = `cs_sync_user_${origin}`;
+    chrome.storage.local.get([storageKeyUser], (res) => {
+        if (res[storageKeyUser]) {
+            usernameInput.value = res[storageKeyUser];
+            usernameContainer.style.display = 'none';
+            linkedEmailSpan.innerText = res[storageKeyUser];
+            linkedUserDiv.style.display = 'block';
+        }
+    });
+
+    document.getElementById('cs-save-username-btn').addEventListener('click', () => {
+        const val = usernameInput.value.trim();
+        if (val) {
+            chrome.storage.local.set({ [storageKeyUser]: val }, () => {
+                showStatus('Account Linked! Syncing...');
+                syncKeysFromDB(); // Fetch keys for this specific email
+            });
+        }
+    });
 
     // Toggle minimize
     toggleBtn.addEventListener('click', () => {
@@ -270,6 +370,7 @@ function attachEventListeners(container) {
             await navigator.clipboard.writeText(ciphertext);
             msgInput.value = '';
             showStatus('Encrypted! Copied to clipboard.');
+            syncMessageToApp(ciphertext, true);
         } catch (err) {
             showStatus('Encryption failed');
         }
@@ -290,6 +391,7 @@ function attachEventListeners(container) {
             if (plaintext) {
                 msgInput.value = plaintext;
                 showStatus('Decrypted Successfully.');
+                syncMessageToApp(text, false); // Send ciphertext to DB!
             } else {
                 showStatus('Decryption Failed. Wrong Key?');
             }
@@ -297,6 +399,27 @@ function attachEventListeners(container) {
             showStatus('Decryption failed format error');
         }
     });
+
+    window.updateKeyDropdown = function() {
+        if (!selectOptions) return;
+        selectOptions.innerHTML = '';
+        Object.keys(keysDb).forEach(alias => {
+            const key = keysDb[alias];
+            const row = document.createElement('div');
+            row.className = 'cs-option-row';
+            row.innerHTML = `
+                <div class="cs-option" data-value="${alias}">${alias}</div>
+                <button class="cs-option-del" data-alias="${alias}" title="Delete">✕</button>
+            `;
+            selectOptions.appendChild(row);
+            
+            // Re-attach delete listener
+            row.querySelector('.cs-option-del').addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleDeleteOption(alias, row);
+            });
+        });
+    };
 }
 
 // Drag and Drop Logic
@@ -356,7 +479,7 @@ function showStatus(msg) {
 }
 
 // Initialize
-chrome.storage.local.get([storageKeyDb, storageKeyAlias, storageKeyPos], (result) => {
+chrome.storage.local.get([storageKeyDb, storageKeyAlias, storageKeyPos, 'cs_linked_email'], (result) => {
     keysDb = result[storageKeyDb] || {};
     activeAlias = result[storageKeyAlias] || '';
     sessionKey = keysDb[activeAlias] || '';
@@ -367,5 +490,6 @@ chrome.storage.local.get([storageKeyDb, storageKeyAlias, storageKeyPos], (result
     // Now inject UI
     setTimeout(() => {
         injectUI();
+        syncKeysFromDB();
     }, 1000);
 });

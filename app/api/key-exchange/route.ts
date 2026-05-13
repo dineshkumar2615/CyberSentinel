@@ -30,8 +30,41 @@ export async function GET() {
     }
 }
 
-// POST: Accept key exchange
+// POST: Create a new key exchange request
 export async function POST(request: Request) {
+    try {
+        await dbConnect();
+
+        const session = await auth();
+        if (!session?.user?.email) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await request.json();
+        const { toUser, encryptionKey, chatId } = body;
+
+        if (!toUser || !encryptionKey || !chatId) {
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+        }
+
+        // Create the exchange
+        const newExchange = await KeyExchangeModel.create({
+            fromUser: session.user.email,
+            toUser: toUser.toLowerCase(),
+            encryptionKey,
+            chatId,
+            status: 'pending'
+        });
+
+        return NextResponse.json({ success: true, id: newExchange._id });
+    } catch (error) {
+        console.error('Error creating key exchange:', error);
+        return NextResponse.json({ error: 'Failed to create key exchange' }, { status: 500 });
+    }
+}
+
+// PATCH: Accept key exchange
+export async function PATCH(request: Request) {
     try {
         await dbConnect();
 
