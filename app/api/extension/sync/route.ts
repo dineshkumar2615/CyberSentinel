@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'crypto';
 import dbConnect from '@/lib/db';
 import User from '@/lib/models/User';
 import SecureMessage from '@/lib/models/SecureMessage';
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
         // 3. Save the message to SecureMessage collection
         // Since we are preserving Zero-Knowledge, we only store the ciphertext!
         // Calculate senderId (hash of email) to match Secure Messenger's deviceId logic
-        const senderId = crypto.createHash('sha256').update(user.email.toLowerCase()).digest('hex');
+        const senderId = createHash('sha256').update(user.email.toLowerCase()).digest('hex');
 
         await SecureMessage.create({
             channelId,
