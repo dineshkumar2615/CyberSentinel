@@ -581,7 +581,7 @@ function SecureMessengerContent() {
     if (status === 'loading') return <div className="min-h-screen bg-[var(--background)]" />;
 
     return (
-        <main className="min-h-screen pt-8 pb-16 md:pt-12 md:pb-20 px-4 md:px-8 max-w-[1600px] mx-auto relative flex flex-col items-center justify-center overflow-y-auto lg:overflow-hidden font-sans">
+        <main className="h-[100dvh] flex flex-col pt-8 md:pt-12 px-4 md:px-8 max-w-[1600px] mx-auto relative overflow-hidden font-sans">
             {/* Favorite Modal */}
             <AnimatePresence>
                 {showFavModal && (
@@ -739,7 +739,7 @@ function SecureMessengerContent() {
                 <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-neon-green/50 to-transparent" />
             </div>
 
-            <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center py-10 max-w-lg mx-auto' : 'flex flex-col lg:grid lg:grid-cols-20 flex-1 md:h-[calc(100vh-140px)] lg:h-[82vh] max-w-[1400px] mx-auto'}`}>
+            <div className={`relative z-10 gap-8 min-h-0 w-full ${!isSessionActive ? 'flex flex-col items-center justify-center py-10 max-w-lg mx-auto' : 'flex flex-col lg:grid lg:grid-cols-20 flex-1 h-full max-w-[1400px] mx-auto overflow-hidden'}`}>
 
                 {/* LEFT PANEL: Session Control */}
                 <div className={`${isSessionActive ? 'lg:col-span-7 order-2 lg:order-1 lg:h-full lg:pr-2 justify-center' : 'w-full'} flex flex-col min-h-0`}>
@@ -893,7 +893,7 @@ function SecureMessengerContent() {
             </div>
 
                 {/* RIGHT PANEL: Chat Interface */}
-                <div className={`lg:col-span-13 order-1 lg:order-2 flex flex-col h-[100dvh] lg:h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative ${!isSessionActive ? 'hidden' : 'flex shrink-0'}`}>
+                <div className={`lg:col-span-13 order-1 lg:order-2 flex flex-col h-full bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-[2rem] overflow-hidden relative ${!isSessionActive ? 'hidden' : 'flex'}`}>
 
                     {!isSessionActive ? (
                         <div className="absolute inset-0 hidden md:flex flex-col items-center justify-center text-[var(--text-dim)] opacity-50 pointer-events-none">
@@ -954,8 +954,8 @@ function SecureMessengerContent() {
                             </div>
 
                             {/* Messages Area */}
-                            <div className="flex-1 flex flex-col max-w-[1200px] mx-auto w-full overflow-hidden">
-                                <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin scrollbar-thumb-neon-green/20">
+                            <div className="flex-1 flex flex-col max-w-[1200px] mx-auto w-full min-h-0 overflow-hidden">
+                                <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin scrollbar-thumb-neon-green/20 scrollbar-track-transparent">
                                 {messages.length === 0 && (
                                     <div className="text-center py-20 text-[var(--text-dim)]">
                                         <MessageSquare size={48} className="mx-auto mb-4 opacity-20" />
