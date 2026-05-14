@@ -963,65 +963,93 @@ function SecureMessengerContent() {
                                     </div>
                                 )}
 
-                                {messages.map((msg) => {
-                                    const isMe = msg.sender === 'me';
-                                    return (
-                                    <motion.div
-                                        key={msg.id}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                                    >
-                                        <div className={`max-w-[90%] md:max-w-[85%] p-3 md:p-4 rounded-2xl border ${isMe
-                                            ? 'bg-neon-green/10 border-neon-green/30 text-neon-green rounded-tr-none'
-                                            : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
-                                            } relative break-words overflow-hidden`}
-                                        >
-                                            <div className="font-mono text-sm whitespace-pre-wrap break-words leading-relaxed overflow-hidden">
-                                                {msg.isDecrypted ? (
-                                                    msg.text.startsWith('data:image/') ? (
-                                                        <div className="relative group/img cursor-zoom-in" onClick={() => setPreviewImage(msg.text)}>
-                                                            <img 
-                                                                src={msg.text} 
-                                                                alt="Encrypted Transmission" 
-                                                                className="rounded-lg max-w-full h-auto border border-[var(--glass-border)]"
-                                                            />
-                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
-                                                                <Maximize2 size={24} className="text-white" />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
-                                                    )
-                                                ) : msg.isError ? (
-                                                    <div className="flex items-center gap-2 p-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-[10px] md:text-xs text-red-400 font-bold uppercase">
-                                                        <Shield size={12} />
-                                                        Key Mismatch / Legacy
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-start gap-3">
-                                                        <div className="text-[var(--text-muted)] flex-1 break-all blur-[3px] select-none text-[10px] md:text-xs">
-                                                            {msg.text.substring(0, 150)}...
-                                                        </div>
-                                                        <div className="shrink-0 p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                                                            <Lock size={14} />
-                                                        </div>
+                                {(() => {
+                                    const getDateLabel = (ts: number) => {
+                                        const msgDate = new Date(ts);
+                                        const today = new Date();
+                                        const yesterday = new Date();
+                                        yesterday.setDate(today.getDate() - 1);
+                                        const toKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+                                        if (toKey(msgDate) === toKey(today)) return 'Today';
+                                        if (toKey(msgDate) === toKey(yesterday)) return 'Yesterday';
+                                        return msgDate.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' });
+                                    };
+
+                                    let lastDateLabel = '';
+                                    return messages.map((msg) => {
+                                        const isMe = msg.sender === 'me';
+                                        const dateLabel = getDateLabel(msg.timestamp);
+                                        const showSeparator = dateLabel !== lastDateLabel;
+                                        if (showSeparator) lastDateLabel = dateLabel;
+
+                                        return (
+                                            <div key={msg.id}>
+                                                {/* Date Separator */}
+                                                {showSeparator && (
+                                                    <div className="flex items-center gap-3 my-4 px-2">
+                                                        <div className="flex-1 h-px bg-[var(--glass-border)]" />
+                                                        <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-dim)] bg-[var(--card-bg)] border border-[var(--glass-border)] px-3 py-1 rounded-full whitespace-nowrap">
+                                                            {dateLabel}
+                                                        </span>
+                                                        <div className="flex-1 h-px bg-[var(--glass-border)]" />
                                                     </div>
                                                 )}
-                                            </div>
-                                            <span className="text-[8px] md:text-[9px] opacity-40 mt-1 md:mt-2 block font-mono text-right">
-                                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </span>
-                                        </div>
-                                    </motion.div>
-                                    );
-                                })}
 
+                                                {/* Message Bubble */}
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                                                >
+                                                    <div className={`max-w-[90%] md:max-w-[85%] p-3 md:p-4 rounded-2xl border ${isMe
+                                                        ? 'bg-neon-green/10 border-neon-green/30 text-neon-green rounded-tr-none'
+                                                        : 'bg-[var(--glass-bg)] border-[var(--glass-border)] text-[var(--foreground)] rounded-tl-none'
+                                                        } relative break-words overflow-hidden`}
+                                                    >
+                                                        <div className="font-mono text-sm whitespace-pre-wrap break-words leading-relaxed overflow-hidden">
+                                                            {msg.isDecrypted ? (
+                                                                msg.text.startsWith('data:image/') ? (
+                                                                    <div className="relative group/img cursor-zoom-in" onClick={() => setPreviewImage(msg.text)}>
+                                                                        <img
+                                                                            src={msg.text}
+                                                                            alt="Encrypted Transmission"
+                                                                            className="rounded-lg max-w-full h-auto border border-[var(--glass-border)]"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                                            <Maximize2 size={24} className="text-white" />
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-xs md:text-sm font-mono leading-relaxed whitespace-pre-wrap mt-1 break-words">{msg.text}</p>
+                                                                )
+                                                            ) : msg.isError ? (
+                                                                <div className="flex items-center gap-2 p-1.5 bg-red-500/10 border border-red-500/20 rounded-lg text-[10px] md:text-xs text-red-400 font-bold uppercase">
+                                                                    <Shield size={12} />
+                                                                    Key Mismatch / Legacy
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="text-[var(--text-muted)] flex-1 break-all blur-[3px] select-none text-[10px] md:text-xs">
+                                                                        {msg.text.substring(0, 150)}...
+                                                                    </div>
+                                                                    <div className="shrink-0 p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                                                                        <Lock size={14} />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[8px] md:text-[9px] opacity-40 mt-1 md:mt-2 block font-mono text-right">
+                                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                </motion.div>
+                                            </div>
+                                        );
+                                    });
+                                })()}
 
                                 <div ref={messagesEndRef} className="h-4" />
                             </div>
-
-
 
                             {/* Main Input Area */}
                             <div className="p-3 md:p-6 space-y-3 md:space-y-4 border-t border-[var(--glass-border)] bg-[var(--background)]/30 backdrop-blur-md">
